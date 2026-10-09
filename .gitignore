@@ -1,0 +1,13 @@
+# Game data and everything derived from it stay local: never commit these.
+game/
+generated/
+work/
+out/
+*.iso
+*.xex
+*.bin
+iso_listing.txt
+
+# Build/run logs and local config
+*.log
+CMakeUserPresets.json
