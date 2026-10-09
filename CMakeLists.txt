@@ -20,6 +20,13 @@ set(SKATE1_SOURCES
     src/main.cpp
 )
 
+# Exe/window icon. The icon is the game's cover art, so it is not committed:
+# drop your own src/skate1.ico in place to embed it.
+if(WIN32 AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/skate1.ico")
+    enable_language(RC)
+    list(APPEND SKATE1_SOURCES src/skate1.rc)
+endif()
+
 if(WIN32)
     add_executable(skate1 WIN32 ${SKATE1_SOURCES})
 else()

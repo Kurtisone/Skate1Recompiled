@@ -11,3 +11,6 @@ iso_listing.txt
 # Build/run logs and local config
 *.log
 CMakeUserPresets.json
+
+# Cover-art icon (EA artwork) stays local
+src/skate1.ico
