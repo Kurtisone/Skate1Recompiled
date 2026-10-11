@@ -18,8 +18,8 @@ Requirements: Windows, Visual Studio 2022 Build Tools, LLVM/Clang 18+, CMake 3.2
 Ninja, Python 3. ReXGlue requires Clang.
 
 ```bat
-git clone --recursive https://github.com/cookingwithsimon/Skate1Port
-cd Skate1Port
+git clone --recursive https://github.com/cookingwithsimon/Skate1Recompiled
+cd Skate1Recompiled
 
 rem SDK fixes this port needs (see "SDK patch" below)
 git -C third_party/rexglue-sdk apply ../../patches/rexglue-sdk.patch
@@ -58,6 +58,13 @@ To use an SDK checkout elsewhere, configure with `-DREXSDK_DIR=<path>`.
 - **imgui**: works with stock imgui (the fork's pinned imgui commit is not fetchable),
   and the overlay draw loop uses `CmdLists.Size`.
 - **Win32**: a lone Alt press no longer opens the system menu and freezes input.
+- **GPU page state**: the frame-end refresh of GPU-written page flags always copies
+  the whole table. The partial copy went into a buffer two frames stale and caused
+  alternating-frame flicker once frames got faster.
+
+The presets build with `REXGLUE_ENABLE_PERF_COUNTERS=OFF` (about 6% CPU saved
+on the GPU thread). To update an SDK checkout that has an older patch applied, run
+`git -C third_party/rexglue-sdk checkout -- src` and apply the patch again.
 
 If the `thirdparty/imgui` submodule fails to fetch its pinned commit, check out
 upstream imgui `master` there.

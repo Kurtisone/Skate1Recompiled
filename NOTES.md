@@ -125,6 +125,20 @@ crashes into the front end, then free skate, as with Skate 2.
 - Dark strip under the board: matches original Xbox 360 footage (Simon checked),
   so it is the game's own contact shadow, not a port bug.
 
+## Performance pass (2026-10-11)
+
+- `REXGLUE_ENABLE_PERF_COUNTERS` is now OFF in the presets. A profile showed
+  `rex::perf::IncrementCounter` (called from `DeferredCommandList::Execute`)
+  taking ~6% CPU; with counters off the slow spots run a steady 60 FPS.
+- That exposed a race behind the alternating-frame flicker:
+  `SharedMemory::SetSystemPageBlocksValidWithGpuDataWritten` double-buffers the
+  page-valid flags, but when 1-16 blocks were dirty it copied only this frame's
+  dirty blocks into staging. Staging is two swaps stale, so it missed the
+  previous frame's blocks and the two buffers diverged every other frame. Slower
+  frames dirtied more than 16 blocks and took the full-copy path, hiding it. The
+  SDK patch now always copies the whole table (~16 KB per frame).
+- Tested at draw_resolution_scale 1x and 2x: no flicker, no stutter.
+
 ## Portable test build
 
 `dist/Skate1-PC-Test.zip` (no game files): skate1.exe, rexruntimerd.dll, app-local
