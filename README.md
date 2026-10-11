@@ -1,4 +1,4 @@
-# Skate1Port
+# Skate1Recompiled
 
 An unofficial native PC port of **skate** (EA Black Box, 2007) for Windows, made by
 statically recompiling the Xbox 360 executable to C++ with
