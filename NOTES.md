@@ -143,6 +143,23 @@ crashes into the front end, then free skate, as with Skate 2.
   at 1x the body was clean but the board and feet still flickered sometimes.
   Adding `depth_float24_round = true` cleared it at 1x (2x not retested yet).
 
+## Photos (2026-10-14)
+
+- Black photos (Sidekick preview, saved PHOTO_* files, MAG cover after a photo
+  challenge): the game JPEG-encodes the 640x360 32bpp resolve target (seen at
+  0x1DBC4000, length 0xF0000) by reading it on the CPU. With resolve readback off,
+  that memory stays zero, so the saved JPEGs were all black pixels. Save/load was
+  fine, and so was the texture cache.
+- A resolve census showed no new target when a photo is taken: the game reads the
+  640x360 target that is already resolved 4x per frame (postfx chain). The patched
+  SDK adds `readback_resolve_force_length` (D3D12 + Vulkan, no logging). Resolves
+  of exactly that length are read back synchronously. skate1.toml sets 983040.
+  No other resolve in the census has that length (framebuffer ones are 0x398000).
+- Cost: 4 GPU drains per frame. The FPS overlay's "wait" goes from 0 to about
+  4-6 ms. That still held 60 FPS at 1x and 2x on the dev machine. A follow-up
+  could arm it only around the photo grab (like Skate 3's TakePhoto hooks)
+  to make it free.
+
 ## Portable test build
 
 `dist/Skate1-PC-Test.zip` (no game files): skate1.exe, rexruntimerd.dll, app-local
