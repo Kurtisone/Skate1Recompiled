@@ -21,4 +21,5 @@ d3d12_frame_latency_waitable_object = true
 d3d12_max_frame_latency = 1
 vsync = true
 depth_float24_convert_in_pixel_shader = true
+depth_float24_round = true
 clear_memory_page_state = true

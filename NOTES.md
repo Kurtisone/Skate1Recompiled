@@ -138,6 +138,10 @@ crashes into the front end, then free skate, as with Skate 2.
   frames dirtied more than 16 blocks and took the full-copy path, hiding it. The
   SDK patch now always copies the whole table (~16 KB per frame).
 - Tested at draw_resolution_scale 1x and 2x: no flicker, no stutter.
+- Remaining flicker on the shirt, board and feet (shadow acne, 2026-10-14): at 2x
+  scale it came back on the body even with `depth_float24_convert_in_pixel_shader`;
+  at 1x the body was clean but the board and feet still flickered sometimes.
+  Adding `depth_float24_round = true` cleared it at 1x (2x not retested yet).
 
 ## Portable test build
 
