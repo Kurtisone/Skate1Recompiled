@@ -55,8 +55,15 @@ Homebrew LLVM.
 
 ```sh
 brew install llvm cmake ninja python molten-vk vulkan-loader
-git clone --recursive https://github.com/cookingwithsimon/Skate1Recompiled
+git clone https://github.com/cookingwithsimon/Skate1Recompiled
 cd Skate1Recompiled
+git submodule update --init third_party/rexglue-sdk
+cd third_party/rexglue-sdk
+for p in $(git config --file .gitmodules --get-regexp '\.path$' | awk '{print $2}'); do
+  git submodule update --init --recursive "$p"
+done
+git -C thirdparty/imgui fetch origin tag v1.92.2 && git -C thirdparty/imgui checkout v1.92.2
+cd ../..
 git -C third_party/rexglue-sdk apply ../../patches/rexglue-sdk.patch
 
 python3 tools/extract_iso.py "Skate. (USA).iso" game
@@ -94,7 +101,9 @@ on the GPU thread). To update an SDK checkout that has an older patch applied, r
 `git -C third_party/rexglue-sdk checkout -- src` and apply the patch again.
 
 If the `thirdparty/imgui` submodule fails to fetch its pinned commit, check out
-upstream imgui `master` there.
+upstream imgui `v1.92.2` there (newer `master` dropped tab colour names the SDK
+still uses). That failure can stop `git submodule update` before the rest are
+fetched, so run it again per submodule if any folder under `thirdparty/` is empty.
 
 ## Layout
 

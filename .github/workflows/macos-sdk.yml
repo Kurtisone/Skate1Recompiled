@@ -25,10 +25,11 @@ jobs:
           for p in $(git config --file .gitmodules --get-regexp '\.path$' | awk '{print $2}'); do
             git submodule update --init --recursive --depth 1 "$p" || echo "::warning::could not fetch $p"
           done
-          # The fork pins an imgui commit that is not fetchable; use upstream.
+          # The fork pins an imgui commit that is not fetchable; use a release.
+          # Current master drops the ImGuiCol_TabActive names the SDK uses.
           if [ ! -f thirdparty/imgui/imgui.cpp ]; then
-            git -C thirdparty/imgui fetch --depth 1 origin master
-            git -C thirdparty/imgui checkout FETCH_HEAD
+            git -C thirdparty/imgui fetch --depth 1 origin tag v1.92.2
+            git -C thirdparty/imgui checkout v1.92.2
           fi
           if git submodule status --recursive | grep '^-'; then exit 1; fi
 
