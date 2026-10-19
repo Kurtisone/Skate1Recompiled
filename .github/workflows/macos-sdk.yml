@@ -21,13 +21,16 @@ jobs:
         run: |
           git submodule update --init third_party/rexglue-sdk
           cd third_party/rexglue-sdk
-          git submodule update --init --recursive || true
+          # One at a time: a failed fetch stops a combined update early.
+          for p in $(git config --file .gitmodules --get-regexp '\.path$' | awk '{print $2}'); do
+            git submodule update --init --recursive --depth 1 "$p" || echo "::warning::could not fetch $p"
+          done
           # The fork pins an imgui commit that is not fetchable; use upstream.
           if [ ! -f thirdparty/imgui/imgui.cpp ]; then
-            git -C thirdparty/imgui fetch origin master
+            git -C thirdparty/imgui fetch --depth 1 origin master
             git -C thirdparty/imgui checkout FETCH_HEAD
           fi
-          git submodule status --recursive | grep '^-' && exit 1 || true
+          if git submodule status --recursive | grep '^-'; then exit 1; fi
 
       - name: Apply SDK patch
         run: git -C third_party/rexglue-sdk apply ../../patches/rexglue-sdk.patch

@@ -46,6 +46,33 @@ saves in a `userdata` folder there.
 
 To use an SDK checkout elsewhere, configure with `-DREXSDK_DIR=<path>`.
 
+### macOS (Apple Silicon, untested)
+
+The SDK supports macOS on ARM64 through Vulkan on MoltenVK. Nobody has run the
+game on a Mac yet, so expect rendering bugs; reports in the issues are welcome.
+Intel Macs are not supported. Apple Clang is rejected by the SDK, so use
+Homebrew LLVM.
+
+```sh
+brew install llvm cmake ninja python molten-vk vulkan-loader
+git clone --recursive https://github.com/cookingwithsimon/Skate1Recompiled
+cd Skate1Recompiled
+git -C third_party/rexglue-sdk apply ../../patches/rexglue-sdk.patch
+
+python3 tools/extract_iso.py "Skate. (USA).iso" game
+cmake --preset macos-arm64-relwithdebinfo
+cmake --build out/build/macos-arm64-relwithdebinfo --target rexglue
+find third_party/rexglue-sdk/out out/build -name rexglue -type f -perm +111   # locate the tool
+<path-to-rexglue> codegen skate1_manifest.toml
+cmake --preset macos-arm64-relwithdebinfo
+cmake --build out/build/macos-arm64-relwithdebinfo
+```
+
+The build copies `libMoltenVK.dylib`, the Vulkan loader and a `MoltenVK_icd.json`
+next to the `skate1` binary. Copy `config/skate1.runtime.toml` there as
+`skate1.toml` and put the extracted `game/` folder beside it, or point
+`game_data_root` at it. The `d3d12_*` settings are ignored on macOS.
+
 ## SDK patch
 
 `patches/rexglue-sdk.patch` applies on top of rexglue-skate3 commit `7eb0faf`:
