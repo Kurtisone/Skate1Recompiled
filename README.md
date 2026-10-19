@@ -67,10 +67,17 @@ cd ../..
 git -C third_party/rexglue-sdk apply ../../patches/rexglue-sdk.patch
 
 python3 tools/extract_iso.py "Skate. (USA).iso" game
-cmake --preset macos-arm64-relwithdebinfo
-cmake --build out/build/macos-arm64-relwithdebinfo --target rexglue
-find third_party/rexglue-sdk/out out/build -name rexglue -type f -perm +111   # locate the tool
-<path-to-rexglue> codegen skate1_manifest.toml
+
+# Build the rexglue tool from the SDK on its own: the project can't be
+# configured until codegen has written generated/rexglue.cmake.
+cmake -S third_party/rexglue-sdk -B out/sdk -G Ninja -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_C_COMPILER=/opt/homebrew/opt/llvm/bin/clang \
+  -DCMAKE_CXX_COMPILER=/opt/homebrew/opt/llvm/bin/clang++ \
+  -DCMAKE_OSX_ARCHITECTURES=arm64 -DREXGLUE_ENABLE_TRACY=OFF
+cmake --build out/sdk --target rexglue
+REXGLUE=$(find out/sdk -name rexglue -type f -perm +111 | head -n 1)
+"$REXGLUE" codegen skate1_manifest.toml   # answer yes if it asks to write generated files
+
 cmake --preset macos-arm64-relwithdebinfo
 cmake --build out/build/macos-arm64-relwithdebinfo
 ```
