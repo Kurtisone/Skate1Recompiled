@@ -1,0 +1,56 @@
+# Builds the patched ReXGlue SDK on an Apple Silicon runner. The game itself
+# can't be built in CI (codegen needs the user's own game files), so this only
+# checks that the SDK, runtime and rexglue tool compile and link on macOS.
+name: macOS SDK build
+
+on:
+  push:
+    branches: [main]
+    paths: ["patches/**", "third_party/**", "CMakePresets.json", ".github/workflows/macos-sdk.yml"]
+  pull_request:
+    paths: ["patches/**", "third_party/**", "CMakePresets.json", ".github/workflows/macos-sdk.yml"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch SDK submodules
+        run: |
+          git submodule update --init third_party/rexglue-sdk
+          cd third_party/rexglue-sdk
+          git submodule update --init --recursive || true
+          # The fork pins an imgui commit that is not fetchable; use upstream.
+          if [ ! -f thirdparty/imgui/imgui.cpp ]; then
+            git -C thirdparty/imgui fetch origin master
+            git -C thirdparty/imgui checkout FETCH_HEAD
+          fi
+          git submodule status --recursive | grep '^-' && exit 1 || true
+
+      - name: Apply SDK patch
+        run: git -C third_party/rexglue-sdk apply ../../patches/rexglue-sdk.patch
+
+      - name: Install toolchain
+        run: brew install llvm ninja molten-vk vulkan-loader
+
+      - name: Configure
+        run: >
+          cmake -S third_party/rexglue-sdk -B out/sdk -G Ninja
+          -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_C_COMPILER=/opt/homebrew/opt/llvm/bin/clang
+          -DCMAKE_CXX_COMPILER=/opt/homebrew/opt/llvm/bin/clang++
+          -DCMAKE_OSX_ARCHITECTURES=arm64
+          -DREXGLUE_ENABLE_TRACY=OFF
+          -DREXGLUE_ENABLE_PERF_COUNTERS=OFF
+
+      - name: Build
+        run: cmake --build out/sdk --parallel
+
+      - name: Upload rexglue tool
+        uses: actions/upload-artifact@v4
+        with:
+          name: rexglue-macos-arm64
+          path: out/sdk/**/rexglue
+          if-no-files-found: warn
