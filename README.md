@@ -75,7 +75,7 @@ cmake -S third_party/rexglue-sdk -B out/sdk -G Ninja -DCMAKE_BUILD_TYPE=Release 
   -DCMAKE_CXX_COMPILER=/opt/homebrew/opt/llvm/bin/clang++ \
   -DCMAKE_OSX_ARCHITECTURES=arm64 -DREXGLUE_ENABLE_TRACY=OFF
 cmake --build out/sdk --target rexglue
-REXGLUE=$(find out/sdk -name rexglue -type f -perm +111 | head -n 1)
+REXGLUE=third_party/rexglue-sdk/out/macos-arm64/rexglue   # the SDK writes the tool here, not under out/sdk
 "$REXGLUE" codegen skate1_manifest.toml   # answer yes if it asks to write generated files
 
 cmake --preset macos-arm64-relwithdebinfo
