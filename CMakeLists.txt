@@ -34,3 +34,14 @@ else()
 endif()
 
 rexglue_setup_target(skate1)
+
+# The SDK writes librexruntime into its own out/<platform> folder, but the host
+# only looks next to itself (@loader_path / $ORIGIN). Windows stages it via
+# TARGET_RUNTIME_DLLS in the SDK; do the same here for macOS and Linux.
+if(NOT WIN32 AND TARGET rexruntime)
+    add_custom_command(TARGET skate1 POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            $<TARGET_FILE:rexruntime> $<TARGET_FILE_DIR:skate1>
+        VERBATIM
+    )
+endif()
