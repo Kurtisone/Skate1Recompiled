@@ -44,6 +44,9 @@ holds the settings Skate 1 needs (vsync, depth conversion, memory coherency).
 `game_data_root` may be relative to the exe. A `portable.txt` beside the exe keeps
 saves in a `userdata` folder there.
 
+To make the intro movies skippable, create an empty `game/data/AllowMovieSkip.txt`
+(the game checks for it; the retail disc doesn't ship it).
+
 To use an SDK checkout elsewhere, configure with `-DREXSDK_DIR=<path>`.
 
 ### macOS (Apple Silicon, untested)

@@ -29,6 +29,7 @@
             "cacheVariables": {
                 "CMAKE_C_COMPILER": "clang-20",
                 "CMAKE_CXX_COMPILER": "clang++-20",
+                "REXGLUE_ENABLE_TRACY": "OFF",
                 "REXGLUE_ENABLE_PERF_COUNTERS": "OFF"
             },
             "condition": {
@@ -66,6 +67,7 @@
                 "CMAKE_OSX_ARCHITECTURES": "arm64",
                 "CMAKE_C_FLAGS": "-march=armv8-a",
                 "CMAKE_CXX_FLAGS": "-march=armv8-a",
+                "REXGLUE_ENABLE_TRACY": "OFF",
                 "REXGLUE_ENABLE_PERF_COUNTERS": "OFF"
             },
             "condition": {
