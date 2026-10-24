@@ -43,10 +43,14 @@ if [[ ! -f game/default.xex ]]; then
   exit 1
 fi
 
-# Codegen writes generated/ (and generated/rexglue.cmake, which the project
-# needs before it can be configured).
-REXGLUE="$(ls third_party/rexglue-sdk/out/linux-amd64/rexglue* | grep -v '\.so' | head -1)"
-LD_LIBRARY_PATH="$(dirname "$REXGLUE")" "$REXGLUE" --force codegen skate1_manifest.toml
+# The project cannot be configured before codegen has written
+# generated/rexglue.cmake, so the first build runs it by hand. After that the
+# build reruns codegen itself whenever its inputs (including the tool) change,
+# and running it here too would do the 30+ minute analysis twice.
+if [[ ! -f generated/rexglue.cmake ]]; then
+  REXGLUE="$(ls third_party/rexglue-sdk/out/linux-amd64/rexglue* | grep -v '\.so' | head -1)"
+  LD_LIBRARY_PATH="$(dirname "$REXGLUE")" "$REXGLUE" --force codegen skate1_manifest.toml
+fi
 
 cmake -S . -B "$GAME_BUILD" -G Ninja -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
