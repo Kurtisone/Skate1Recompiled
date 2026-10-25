@@ -11,3 +11,5 @@ readback_resolve_force_length = 0
 mnk_mode = false
 # The quit dialog opens with RB+Start only.
 bind_quit = ''
+# Fill the screen and hide Android's status and navigation bars.
+fullscreen = true

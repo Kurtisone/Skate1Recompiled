@@ -26,9 +26,10 @@ class Skate1App : public rex::ReXApp {
   // void OnShutdown() override {}
   // Portable layout: a relative (or missing) game_data_root resolves next to
   // the exe instead of the working directory, and a portable.txt beside the
-  // exe keeps saves and caches in the exe folder too.
+  // exe keeps saves and caches in the exe folder too. The app root is the
+  // exe folder on desktop and the app's external files folder on Android.
   void OnConfigurePaths(rex::PathConfig& paths) override {
-    const auto exe_dir = rex::filesystem::GetExecutableFolder();
+    const auto exe_dir = rex::filesystem::GetAppRootFolder();
     if (paths.game_data_root.empty()) paths.game_data_root = exe_dir / "game";
     if (paths.game_data_root.is_relative())
       paths.game_data_root = exe_dir / paths.game_data_root;
