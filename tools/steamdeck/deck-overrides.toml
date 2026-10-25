@@ -10,3 +10,8 @@ draw_resolution_scale_y = 1
 # 640x360 target 4x per frame). Off here; in-game photos come out black, as
 # in builds before 0.3.
 readback_resolve_force_length = 0
+# The Deck plays with its controller. In Desktop Mode, Steam's desktop layout
+# (and the controller's lizard mode) also send keyboard keys for the buttons
+# (A -> Enter), which keyboard emulation turned into a second pad press: every
+# button acted twice. Set back to true to play with a keyboard and mouse.
+mnk_mode = false
