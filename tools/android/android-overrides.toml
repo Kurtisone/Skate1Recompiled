@@ -20,3 +20,7 @@ fullscreen = true
 perf_log_seconds = 5
 vulkan_gpu_timestamp_buckets = true
 show_fps_counter = true
+# Tiled GPUs (Adreno): copy guest memory uploads before the render pass instead
+# of ending it for each one (~1000 times per frame in game otherwise).
+vulkan_hoist_shared_memory_uploads = true
+vulkan_log_render_pass_breaks = true
