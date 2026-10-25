@@ -8,6 +8,10 @@
 // from the GPU and the battery. Keep spinning through short waits, where a
 // late wakeup would cost frame time, and sleep briefly between the polls once
 // a wait gets long.
+//
+// Off by default: on the Steam Deck any sleep here dropped the game to 20-24 FPS
+// with choppy audio (likely the CPU governor clocking down once the render
+// thread idles), although it ran cooler. Set gpu_wait_sleep_us to try it.
 
 #include <chrono>
 #include <thread>
@@ -17,7 +21,7 @@
 
 #include "generated/default/skate1_init.h"
 
-REXCVAR_DEFINE_INT32(gpu_wait_sleep_us, 100, "Skate1",
+REXCVAR_DEFINE_INT32(gpu_wait_sleep_us, 0, "Skate1",
                      "Host sleep in microseconds between the game's polls once a wait for the "
                      "GPU gets long (0 = spin like the console)")
     .range(0, 2000);
