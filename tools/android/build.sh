@@ -87,11 +87,14 @@ PY
 cat > "$PACKAGE/README.txt" <<'TXT'
 skate1 for Android (arm64)
 
-1. Install skate1.apk and launch it once (it creates its folder), then quit.
-2. Copy skate1.toml and the extracted game/ folder into
-     Android/data/com.kurtisone.skate1/files/
-   on the device's internal storage (USB from a PC works best; Android
-   restricts file managers in Android/data).
-3. Launch it again. Logs go to files/logs/ in the same folder.
+1. Install skate1.apk and launch it once: it asks for "All files access";
+   allow it, then quit.
+2. Make a folder named skate1 at the root of the internal storage (or of a
+   microSD card) and put skate1.toml and the extracted game/ folder in it:
+     skate1/skate1.toml
+     skate1/game/default.xex ...
+   Any way works: microSD card, file manager, LocalSend, adb push.
+   (Without the permission, Android/data/com.kurtisone.skate1/files/ is used.)
+3. Launch it again. Logs go to skate1/logs/, a crash report to skate1/crash.txt.
 TXT
 echo "APK ready: $PACKAGE/skate1.apk"
