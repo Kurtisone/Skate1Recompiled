@@ -32,3 +32,6 @@ vulkan_submit_on_primary_buffer_end = false
 # Skate draws its main scene with 4x MSAA; render it single-sampled (jagged
 # edges, much less memory traffic on a tiled GPU). Applies at launch.
 gpu_force_msaa_1x = true
+# Diagnostics for custom GPU drivers: save the game's picture (before the
+# presenter draws it) to guest_output.ppm 45 s after launch.
+capture_guest_output_seconds = 45

@@ -7,6 +7,9 @@
 #include <rex/filesystem.h>
 #include <rex/rex_app.h>
 
+// src/capture_debug.cpp (capture_guest_output_seconds).
+void StartGuestOutputCapture(rex::Runtime* runtime);
+
 class Skate1App : public rex::ReXApp {
  public:
   using rex::ReXApp::ReXApp;
@@ -21,7 +24,7 @@ class Skate1App : public rex::ReXApp {
   // void OnPostInitLogging() override {}
   // void OnPreSetup(rex::RuntimeConfig& config) override {}
   // void OnLoadXexImage(std::string& xex_image) override {}
-  // void OnPostSetup() override {}
+  void OnPostSetup() override { StartGuestOutputCapture(runtime()); }
   // void OnCreateDialogs(rex::ui::ImGuiDrawer* drawer) override {}
   // void OnShutdown() override {}
   // Portable layout: a relative (or missing) game_data_root resolves next to
