@@ -32,9 +32,3 @@ vulkan_submit_on_primary_buffer_end = false
 # Skate draws its main scene with 4x MSAA; render it single-sampled (jagged
 # edges, much less memory traffic on a tiled GPU). Applies at launch.
 gpu_force_msaa_1x = true
-# A/B check in game (from 150 s after launch, 30 s each, twice): MSAA also
-# off on the 640-wide surfaces (the title screen needs them, the game may not).
-presenter_present_cadence_swaps = 120
-perf_ab_plan = ";gpu_force_msaa_1x_min_pitch=640"
-perf_ab_seconds = 30
-perf_ab_start_seconds = 150
