@@ -29,3 +29,11 @@ vulkan_log_render_pass_breaks = true
 vulkan_direct_resolve_fast32 = true
 # Frame time statistics (average, worst) every 600 presented frames.
 presenter_present_cadence_log = true
+# Render pass objects with explicit load/store ops instead of dynamic rendering
+# (try on Qualcomm's driver; applies at launch).
+vulkan_dynamic_rendering = false
+presenter_present_cadence_swaps = 120
+# A/B test in game: from 150 s after launch, each variant for 30 s, twice.
+perf_ab_plan = ";vulkan_deferred_resolve_clears=true;vulkan_submit_on_primary_buffer_end=false;vulkan_skip_inert_no_pixel_draws=true;vulkan_direct_resolve_fast32=false"
+perf_ab_seconds = 30
+perf_ab_start_seconds = 150

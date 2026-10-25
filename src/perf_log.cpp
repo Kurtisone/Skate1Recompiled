@@ -24,6 +24,15 @@
 #include <rex/cvar.h>
 #include <rex/logging.h>
 
+REXCVAR_DEFINE_STRING(perf_ab_plan, "", "Skate1",
+                      "A/B test of hot-reloadable settings: variants separated by ';', each a "
+                      "list of name=value separated by ','; an empty variant is the baseline. "
+                      "Each runs perf_ab_seconds, the whole plan twice, starting "
+                      "perf_ab_start_seconds after launch; switches are logged");
+REXCVAR_DEFINE_INT32(perf_ab_seconds, 30, "Skate1", "Seconds per A/B variant").range(5, 3600);
+REXCVAR_DEFINE_INT32(perf_ab_start_seconds, 120, "Skate1",
+                     "Seconds after launch before the A/B test starts")
+    .range(0, 3600);
 REXCVAR_DEFINE_INT32(perf_log_seconds, 0, "Skate1",
                      "Every this many seconds, log the busiest threads (CPU %, core) and the "
                      "core clocks (0 = off)")
@@ -152,9 +161,71 @@ void PerfLogLoop() {
   }
 }
 
+std::vector<std::string> Split(const std::string& text, char separator) {
+  std::vector<std::string> parts;
+  size_t start = 0;
+  while (true) {
+    size_t end = text.find(separator, start);
+    parts.push_back(text.substr(start, end == std::string::npos ? std::string::npos : end - start));
+    if (end == std::string::npos) {
+      return parts;
+    }
+    start = end + 1;
+  }
+}
+
+void PerfAbLoop() {
+  // Wait for the config to be loaded and the player to reach the scene.
+  std::this_thread::sleep_for(std::chrono::seconds(5));
+  std::string plan = REXCVAR_GET(perf_ab_plan);
+  if (plan.empty()) {
+    return;
+  }
+  std::vector<std::vector<std::pair<std::string, std::string>>> variants;
+  std::map<std::string, std::string> baseline;
+  for (const std::string& variant_text : Split(plan, ';')) {
+    std::vector<std::pair<std::string, std::string>> variant;
+    for (const std::string& assignment : Split(variant_text, ',')) {
+      size_t equals = assignment.find('=');
+      if (equals == std::string::npos) {
+        continue;
+      }
+      std::string name = assignment.substr(0, equals);
+      variant.emplace_back(name, assignment.substr(equals + 1));
+      if (!baseline.count(name)) {
+        baseline[name] = rex::cvar::GetFlagByName(name);
+      }
+    }
+    variants.push_back(std::move(variant));
+  }
+  std::this_thread::sleep_for(std::chrono::seconds(std::max(0, REXCVAR_GET(perf_ab_start_seconds) - 5)));
+  for (int round = 0; round < 2; ++round) {
+    for (size_t i = 0; i < variants.size(); ++i) {
+      for (const auto& [name, value] : baseline) {
+        rex::cvar::SetFlagByName(name, value);
+      }
+      std::string description;
+      for (const auto& [name, value] : variants[i]) {
+        rex::cvar::SetFlagByName(name, value);
+        description += " " + name + "=" + value;
+      }
+      REXLOG_INFO("perf-ab: round {} variant {}:{}", round, i,
+                  description.empty() ? " baseline" : description);
+      std::this_thread::sleep_for(std::chrono::seconds(REXCVAR_GET(perf_ab_seconds)));
+    }
+  }
+  for (const auto& [name, value] : baseline) {
+    rex::cvar::SetFlagByName(name, value);
+  }
+  REXLOG_INFO("perf-ab: done, settings restored");
+}
+
 // Started at load; idles until perf_log_seconds is set.
 struct PerfLogStarter {
-  PerfLogStarter() { std::thread(PerfLogLoop).detach(); }
+  PerfLogStarter() {
+    std::thread(PerfLogLoop).detach();
+    std::thread(PerfAbLoop).detach();
+  }
 } perf_log_starter;
 
 }  // namespace
