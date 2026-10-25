@@ -27,6 +27,9 @@ target_link_libraries(skate1_recomp PRIVATE rex::runtime)
 target_compile_options(skate1_recomp PRIVATE ${SKATE1_RECOMP_OPTIONS})
 target_precompile_headers(skate1_recomp PRIVATE "${SKATE1_GENERATED_DIR}/skate1_pch.h")
 rexglue_apply_target_settings(skate1_recomp)
+# The SDK's settings ask for -march=armv8-a; the CMAKE_CXX_FLAGS level wins only
+# if it comes last, so repeat it here (see tools/android/build.sh).
+target_compile_options(skate1_recomp PRIVATE -march=armv8.2-a)
 
 add_library(main SHARED
     "${SKATE1_ROOT}/src/main.cpp"
@@ -37,4 +40,5 @@ target_include_directories(main PRIVATE
     "${SKATE1_ROOT}" "${SKATE1_ROOT}/src" "${SKATE1_GENERATED_DIR}")
 target_link_libraries(main PRIVATE skate1_recomp rex::runtime)
 rexglue_apply_target_settings(main)
+target_compile_options(main PRIVATE -march=armv8.2-a)
 rexglue_configure_target(main GPU_PLUGINS xenos)

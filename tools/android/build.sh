@@ -21,6 +21,9 @@ BUILD=out/android/game
 WORK=out/android/apk
 PACKAGE=out/android/package
 KEYSTORE="${KEYSTORE:-$HOME/Android/skate1-debug.keystore}"
+# ARMv8.2 (Snapdragon 845 and later): LSE atomics instead of LL/SC loops, for
+# the runtime's locks and the recompiled code's atomics.
+ARCH_FLAGS="-march=armv8.2-a"
 
 if [[ ! -f generated/default/sources.cmake ]]; then
   echo "generated/ is missing: run the desktop build (codegen) first" >&2
@@ -31,6 +34,7 @@ fi
 cmake -S tools/android -B "$BUILD" -G Ninja -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_TOOLCHAIN_FILE="$ANDROID_NDK/build/cmake/android.toolchain.cmake" \
   -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-29 -DANDROID_STL=c++_shared \
+  "-DCMAKE_C_FLAGS=$ARCH_FLAGS" "-DCMAKE_CXX_FLAGS=$ARCH_FLAGS" \
   -DREXGLUE_ENABLE_TRACY=OFF -DREXGLUE_ENABLE_PERF_COUNTERS=OFF
 cmake --build "$BUILD" --target main
 
@@ -53,8 +57,29 @@ javac -source 11 -target 11 -nowarn -encoding UTF-8 -cp "$PLATFORM_JAR" -d "$WOR
 # 3. Resources (SDL's, with ours on top) and the manifest.
 "$BUILD_TOOLS/aapt2" compile --dir "$SDL_PROJECT/app/src/main/res" -o "$WORK/res/sdl.zip"
 "$BUILD_TOOLS/aapt2" compile --dir tools/android/res -o "$WORK/res/skate1.zip"
+# Launcher icon: the game's own title icon, read from the user's XEX by the
+# desktop rexglue tool (it is the game's art, so it is never committed).
+# Without the tool the APK keeps SDL's icon.
+ICON_OVERLAY=()
+REXGLUE_TOOL=third_party/rexglue-sdk/out/linux-amd64/rexglue
+if [[ -x "$REXGLUE_TOOL" ]]; then
+  ICON_TMP="$(mktemp -d)"
+  (cd "$ICON_TMP" && LD_LIBRARY_PATH="$ROOT/$(dirname "$REXGLUE_TOOL")" "$ROOT/$REXGLUE_TOOL" \
+     init --project-name icon --xex-path "$ROOT/game/default.xex" \
+     achievements "$ROOT/game/default.xex" "$ICON_TMP/out" >/dev/null 2>&1) || true
+  if [[ -f "$ICON_TMP/out/icons/title.png" ]]; then
+    for density in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
+      mkdir -p "$WORK/res-icon/mipmap-$density"
+      cp "$ICON_TMP/out/icons/title.png" "$WORK/res-icon/mipmap-$density/ic_launcher.png"
+    done
+    "$BUILD_TOOLS/aapt2" compile --dir "$WORK/res-icon" -o "$WORK/res/icon.zip"
+    ICON_OVERLAY=(-R "$WORK/res/icon.zip")
+  fi
+  rm -rf "$ICON_TMP"
+fi
 "$BUILD_TOOLS/aapt2" link -o "$WORK/unsigned.apk" -I "$PLATFORM_JAR" \
-  --manifest tools/android/AndroidManifest.xml "$WORK/res/sdl.zip" -R "$WORK/res/skate1.zip"
+  --manifest tools/android/AndroidManifest.xml "$WORK/res/sdl.zip" -R "$WORK/res/skate1.zip" \
+  "${ICON_OVERLAY[@]}"
 
 # 4. Code and native libraries into the APK, align, sign.
 python3 - "$WORK" <<'PY'
