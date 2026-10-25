@@ -14,20 +14,16 @@ bind_quit = ''
 # Fill the screen and hide Android's status and navigation bars.
 fullscreen = true
 
-# Diagnostics while tuning performance on Android (remove once done):
-# the busiest threads and core clocks every 5 s, the GPU time per frame by
-# category every 120 frames, and the FPS counter.
-perf_log_seconds = 5
-vulkan_gpu_timestamp_buckets = true
+# FPS counter (top right).
 show_fps_counter = true
 # Tiled GPUs (Adreno): copy guest memory uploads before the render pass instead
 # of ending it for each one (~1000 times per frame in game otherwise).
 vulkan_hoist_shared_memory_uploads = true
-vulkan_log_render_pass_breaks = true
 # Resolve 32-bit render targets straight from the render target instead of
 # dumping them to the EDRAM buffer first (a full extra read on tiled GPUs).
 vulkan_direct_resolve_fast32 = true
-# Frame time statistics (average, worst) every 600 presented frames.
+# Frame time statistics (average, worst) in the log every 600 frames, to see
+# stutters.
 presenter_present_cadence_log = true
 # Measured on the Odin 2 Portal (Adreno 740): submitting the GPU work at
 # each end of the title's primary command buffer (several times a frame)
@@ -36,9 +32,3 @@ vulkan_submit_on_primary_buffer_end = false
 # Skate draws its main scene with 4x MSAA; render it single-sampled (jagged
 # edges, much less memory traffic on a tiled GPU). Applies at launch.
 gpu_force_msaa_1x = true
-presenter_present_cadence_swaps = 120
-# A/B check in game (from 150 s after launch, 30 s each, twice): the
-# submission setting again, with MSAA off.
-perf_ab_plan = ";vulkan_submit_on_primary_buffer_end=true"
-perf_ab_seconds = 30
-perf_ab_start_seconds = 150
