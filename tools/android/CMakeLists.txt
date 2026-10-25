@@ -35,7 +35,8 @@ add_library(main SHARED
     "${SKATE1_ROOT}/src/main.cpp"
     "${SKATE1_ROOT}/src/gpu_wait.cpp"
     "${SKATE1_ROOT}/src/job_wait.cpp"
-    "${SKATE1_ROOT}/src/skip_intro.cpp")
+    "${SKATE1_ROOT}/src/skip_intro.cpp"
+    "${SKATE1_ROOT}/src/perf_log.cpp")
 target_include_directories(main PRIVATE
     "${SKATE1_ROOT}" "${SKATE1_ROOT}/src" "${SKATE1_GENERATED_DIR}")
 target_link_libraries(main PRIVATE skate1_recomp rex::runtime)

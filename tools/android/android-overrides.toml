@@ -13,3 +13,10 @@ mnk_mode = false
 bind_quit = ''
 # Fill the screen and hide Android's status and navigation bars.
 fullscreen = true
+
+# Diagnostics while tuning performance on Android (remove once done):
+# the busiest threads and core clocks every 5 s, the GPU time per frame by
+# category every 120 frames, and the FPS counter.
+perf_log_seconds = 5
+vulkan_gpu_timestamp_buckets = true
+show_fps_counter = true
