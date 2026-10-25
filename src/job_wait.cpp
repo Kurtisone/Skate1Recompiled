@@ -7,6 +7,10 @@
 // returning from the wait at once and rescans: about 40,000 empty passes per
 // second per worker. After a short streak of such back-to-back passes, sleep
 // briefly instead, so a job released right away is still picked up at once.
+//
+// Off by default: the idle periods are short (all under 1 ms, jobs arrive every
+// ~2 ms per worker), so a sleeping worker picks the next job up late, and on
+// the Steam Deck those delays added up to 24 FPS and choppy audio.
 
 #include <chrono>
 #include <thread>
@@ -16,7 +20,7 @@
 
 #include "generated/default/skate1_init.h"
 
-REXCVAR_DEFINE_INT32(job_wait_sleep_us, 50, "Skate1",
+REXCVAR_DEFINE_INT32(job_wait_sleep_us, 0, "Skate1",
                      "Host sleep in microseconds once an idle job worker keeps finding nothing "
                      "to run (0 = spin like the console)")
     .range(0, 2000);
