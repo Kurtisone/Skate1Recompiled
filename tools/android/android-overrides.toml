@@ -24,3 +24,8 @@ show_fps_counter = true
 # of ending it for each one (~1000 times per frame in game otherwise).
 vulkan_hoist_shared_memory_uploads = true
 vulkan_log_render_pass_breaks = true
+# Resolve 32-bit render targets straight from the render target instead of
+# dumping them to the EDRAM buffer first (a full extra read on tiled GPUs).
+vulkan_direct_resolve_fast32 = true
+# Frame time statistics (average, worst) every 600 presented frames.
+presenter_present_cadence_log = true
