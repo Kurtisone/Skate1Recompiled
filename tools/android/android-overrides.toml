@@ -1,0 +1,13 @@
+# Settings the Android package uses on top of config/skate1.runtime.toml
+# (same reasoning as tools/steamdeck/deck-overrides.toml).
+#
+# Native 720p: 2x costs about 4x the GPU time on the Vulkan backend.
+draw_resolution_scale_x = 1
+draw_resolution_scale_y = 1
+# The photo readback drains the GPU 4 times per frame; in-game photos come out
+# black without it.
+readback_resolve_force_length = 0
+# Play with the handheld's controller; no keyboard emulation of the pad.
+mnk_mode = false
+# The quit dialog opens with RB+Start only.
+bind_quit = ''
