@@ -62,7 +62,17 @@ rm -rf "$PACKAGE"
 mkdir -p "$PACKAGE"
 cp "$GAME_BUILD/skate1" "$PACKAGE/"
 cp "$GAME_BUILD"/librexruntime*.so "$GAME_BUILD"/librexgpu-xenos*.so "$PACKAGE/"
-cp config/skate1.runtime.toml "$PACKAGE/skate1.toml"
+# Desktop settings, then the Deck overrides (later keys win in a TOML table,
+# so drop the overridden ones first).
+python3 - config/skate1.runtime.toml tools/steamdeck/deck-overrides.toml "$PACKAGE/skate1.toml" <<'PY'
+import re, sys
+base, over, out = sys.argv[1:4]
+key = lambda l: re.match(r'\s*([A-Za-z0-9_]+)\s*=', l)
+over_lines = open(over).read().splitlines()
+over_keys = {key(l).group(1) for l in over_lines if key(l)}
+kept = [l for l in open(base).read().splitlines() if not (key(l) and key(l).group(1) in over_keys)]
+open(out, 'w').write('\n'.join(kept + [''] + over_lines) + '\n')
+PY
 cat > "$PACKAGE/README.txt" <<'TXT'
 skate1, native Linux build for the Steam Deck
 

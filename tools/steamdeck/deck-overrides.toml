@@ -1,0 +1,12 @@
+# Settings the Steam Deck package uses on top of config/skate1.runtime.toml.
+# Measured on an APU of the same class (Zen 2 + RDNA/Vega iGPU), Skate Libre
+# tutorial scene: 8 FPS with the desktop settings, 15-18 FPS with these.
+#
+# Render at the console's native 720p instead of 2x: the Deck screen is 800p,
+# and 2x costs about 4x the GPU time on the Vulkan backend.
+draw_resolution_scale_x = 1
+draw_resolution_scale_y = 1
+# The photo readback drains the GPU 4 times per frame (the game resolves that
+# 640x360 target 4x per frame). Off here; in-game photos come out black, as
+# in builds before 0.3.
+readback_resolve_force_length = 0
