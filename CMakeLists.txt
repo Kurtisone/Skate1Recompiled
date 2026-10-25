@@ -19,6 +19,7 @@ include(generated/rexglue.cmake)
 set(SKATE1_SOURCES
     src/main.cpp
     src/gpu_wait.cpp
+    src/job_wait.cpp
 )
 
 # Exe/window icon. The icon is the game's cover art, so it is not committed:
