@@ -46,6 +46,8 @@ cp "$BUILD/libmain.so" "$LIBS/"
 cp third_party/rexglue-sdk/out/linux-arm64/librexruntime.so "$LIBS/"
 cp "$BUILD/librexgpu-xenos.so" "$LIBS/"
 cp "$LLVM/sysroot/usr/lib/aarch64-linux-android/libc++_shared.so" "$LIBS/"
+# adrenotools' hooks, loaded from the native library folder.
+cp "$BUILD"/adrenotools/src/hook/*.so "$LIBS/"
 "$LLVM/bin/llvm-strip" --strip-unneeded "$LIBS"/*.so
 
 # 2. Java: SDL's activity and helpers, plus ours.
@@ -121,5 +123,13 @@ skate1 for Android (arm64)
    Any way works: microSD card, file manager, LocalSend, adb push.
    (Without the permission, Android/data/com.kurtisone.skate1/files/ is used.)
 3. Launch it again. Logs go to skate1/logs/, a crash report to skate1/crash.txt.
+
+Custom GPU driver (optional): unzip a driver package for Adreno (Turnip, or a
+newer Qualcomm driver, as made for AdrenoTools: meta.json + the driver .so)
+into skate1/driver/. The game loads it at launch and writes the outcome to
+skate1/driver_status.txt. Remove the folder to go back to the system driver.
+
+GPU turbo (optional): gpu_turbo = true in skate1.toml keeps the Adreno at its
+top clock (more heat and battery use).
 TXT
 echo "APK ready: $PACKAGE/skate1.apk"

@@ -2,3 +2,6 @@
 	path = third_party/rexglue-sdk
 	url = https://github.com/Kurtisone/rexglue-skate3.git
 	branch = skate1-v0.10.0
+[submodule "third_party/libadrenotools"]
+	path = third_party/libadrenotools
+	url = https://github.com/bylaws/libadrenotools

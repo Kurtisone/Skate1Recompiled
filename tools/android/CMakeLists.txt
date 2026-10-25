@@ -36,10 +36,19 @@ add_library(main SHARED
     "${SKATE1_ROOT}/src/gpu_wait.cpp"
     "${SKATE1_ROOT}/src/job_wait.cpp"
     "${SKATE1_ROOT}/src/skip_intro.cpp"
-    "${SKATE1_ROOT}/src/perf_log.cpp")
+    "${SKATE1_ROOT}/src/perf_log.cpp"
+    "${SKATE1_ROOT}/src/android_gpu.cpp")
 target_include_directories(main PRIVATE
     "${SKATE1_ROOT}" "${SKATE1_ROOT}/src" "${SKATE1_GENERATED_DIR}")
 target_link_libraries(main PRIVATE skate1_recomp rex::runtime)
 rexglue_apply_target_settings(main)
 target_compile_options(main PRIVATE -march=armv8.2-a)
 rexglue_configure_target(main GPU_PLUGINS xenos)
+
+# Custom Vulkan drivers (Turnip, newer Qualcomm drivers) through adrenotools:
+# SDL_main loads one from the game folder's driver/ when present; the hook
+# libraries ship in the APK next to libmain.so.
+add_subdirectory("${SKATE1_ROOT}/third_party/libadrenotools" adrenotools)
+target_link_libraries(main PRIVATE adrenotools)
+target_compile_definitions(main PRIVATE REX_HAS_ADRENOTOOLS=1)
+add_dependencies(main main_hook hook_impl file_redirect_hook gsl_alloc_hook)
