@@ -2,8 +2,10 @@
 // a device without a profiler (Linux and Android).
 //
 // With perf_log_seconds > 0, every that many seconds the log gets the busiest
-// threads (CPU % of one core, and the core each one last ran on) and every
-// core's current clock. On big.LITTLE SoCs a game thread stuck on a little
+// threads (CPU % of one core, the core each one last ran on, and its context
+// switches per second) and every core's current clock. A thread that polls
+// (sleeps of a millisecond or less, yields) switches thousands of times a
+// second; one that computes switches rarely. On big.LITTLE SoCs a game thread stuck on a little
 // core shows up here.
 
 #include <rex/platform.h>
@@ -43,6 +45,7 @@ namespace {
 struct ThreadSample {
   std::string name;
   uint64_t ticks = 0;
+  uint64_t switches = 0;
   int core = -1;
 };
 
@@ -84,6 +87,13 @@ std::map<int, ThreadSample> ReadThreads() {
     if (fields.size() > 36) {
       sample.ticks = std::stoull(fields[11]) + std::stoull(fields[12]);
       sample.core = std::stoi(fields[36]);
+    }
+    std::ifstream status_file("/proc/self/task/" + std::string(entry->d_name) + "/status");
+    while (std::getline(status_file, line)) {
+      // voluntary_ctxt_switches and nonvoluntary_ctxt_switches.
+      if (line.find("ctxt_switches:") != std::string::npos) {
+        sample.switches += std::stoull(line.substr(line.find(':') + 1));
+      }
     }
     threads[tid] = sample;
   }
@@ -130,6 +140,7 @@ void PerfLogLoop() {
       double ticks_per_second = double(sysconf(_SC_CLK_TCK));
       struct Usage {
         double percent;
+        double switches_per_second;
         const ThreadSample* sample;
       };
       std::vector<Usage> usage;
@@ -142,15 +153,17 @@ void PerfLogLoop() {
         double percent =
             100.0 * double(sample.ticks - it->second.ticks) / ticks_per_second / seconds;
         total += percent;
-        usage.push_back({percent, &sample});
+        double switches_per_second =
+            double(sample.switches - std::min(sample.switches, it->second.switches)) / seconds;
+        usage.push_back({percent, switches_per_second, &sample});
       }
       std::sort(usage.begin(), usage.end(),
                 [](const Usage& a, const Usage& b) { return a.percent > b.percent; });
       std::string top;
       for (size_t i = 0; i < usage.size() && i < 10; ++i) {
-        char buffer[96];
-        snprintf(buffer, sizeof(buffer), " %s=%.0f%%@%d", usage[i].sample->name.c_str(),
-                 usage[i].percent, usage[i].sample->core);
+        char buffer[112];
+        snprintf(buffer, sizeof(buffer), " %s=%.0f%%@%d/%.0fcs", usage[i].sample->name.c_str(),
+                 usage[i].percent, usage[i].sample->core, usage[i].switches_per_second);
         top += buffer;
       }
       REXLOG_INFO("perf: process {:.0f}% |{}", total, top);
