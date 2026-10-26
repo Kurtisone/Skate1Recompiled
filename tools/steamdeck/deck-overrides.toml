@@ -19,3 +19,7 @@ mnk_mode = false
 # and the controller's lizard mode send Escape for the Start button, so the
 # Escape bind opened the dialog on every Start press.
 bind_quit = ''
+# The Deck's speakers are stereo but PipeWire exposes them as a 5.1 sink.
+# Passing the guest's 5.1 through left PipeWire to fold it, which crackled on
+# voice and music; fold to stereo with the SDK's normalized mix instead.
+audio_force_stereo = true
