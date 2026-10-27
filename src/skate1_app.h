@@ -4,9 +4,12 @@
 
 #pragma once
 
+#include <rex/cvar.h>
 #include <rex/filesystem.h>
 #include <rex/perf/counter.h>
 #include <rex/rex_app.h>
+
+REXCVAR_DECLARE(std::string, perf_log_csv);
 
 // src/capture_debug.cpp (capture_guest_output_seconds).
 void StartGuestOutputCapture(rex::Runtime* runtime);
@@ -22,9 +25,13 @@ class Skate1App : public rex::ReXApp {
   }
 
   // Override virtual hooks for customization:
-  // Profiling builds (TRACY=1 tools/steamdeck/build.sh): the SDK's Tracy
-  // client has a manual lifetime and nothing in the SDK starts it.
-  void OnPostInitLogging() override { rex::perf::Profiler::Startup(); }
+  // Profiling builds (TRACY=1 / PERF=1 tools/steamdeck/build.sh): the SDK's
+  // Tracy client has a manual lifetime and nothing in the SDK starts it, nor
+  // opens the perf_log_csv per-frame counter log.
+  void OnPostInitLogging() override {
+    rex::perf::Profiler::Startup();
+    rex::perf::SetCsvLogPath(REXCVAR_GET(perf_log_csv));
+  }
   // void OnPreSetup(rex::RuntimeConfig& config) override {}
   // void OnLoadXexImage(std::string& xex_image) override {}
   void OnPostSetup() override { StartGuestOutputCapture(runtime()); }
