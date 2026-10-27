@@ -5,6 +5,7 @@
 #pragma once
 
 #include <rex/filesystem.h>
+#include <rex/perf/counter.h>
 #include <rex/rex_app.h>
 
 // src/capture_debug.cpp (capture_guest_output_seconds).
@@ -21,7 +22,9 @@ class Skate1App : public rex::ReXApp {
   }
 
   // Override virtual hooks for customization:
-  // void OnPostInitLogging() override {}
+  // Profiling builds (TRACY=1 tools/steamdeck/build.sh): the SDK's Tracy
+  // client has a manual lifetime and nothing in the SDK starts it.
+  void OnPostInitLogging() override { rex::perf::Profiler::Startup(); }
   // void OnPreSetup(rex::RuntimeConfig& config) override {}
   // void OnLoadXexImage(std::string& xex_image) override {}
   void OnPostSetup() override { StartGuestOutputCapture(runtime()); }
