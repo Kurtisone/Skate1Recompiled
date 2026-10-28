@@ -9,7 +9,9 @@
 #include <rex/perf/counter.h>
 #include <rex/rex_app.h>
 
+#ifdef REXGLUE_ENABLE_PERF_COUNTERS
 REXCVAR_DECLARE(std::string, perf_log_csv);
+#endif
 
 // src/capture_debug.cpp (capture_guest_output_seconds).
 void StartGuestOutputCapture(rex::Runtime* runtime);
@@ -30,7 +32,9 @@ class Skate1App : public rex::ReXApp {
   // opens the perf_log_csv per-frame counter log.
   void OnPostInitLogging() override {
     rex::perf::Profiler::Startup();
+#ifdef REXGLUE_ENABLE_PERF_COUNTERS
     rex::perf::SetCsvLogPath(REXCVAR_GET(perf_log_csv));
+#endif
   }
   // void OnPreSetup(rex::RuntimeConfig& config) override {}
   // void OnLoadXexImage(std::string& xex_image) override {}
