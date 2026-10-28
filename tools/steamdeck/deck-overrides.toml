@@ -23,3 +23,10 @@ bind_quit = ''
 # Passing the guest's 5.1 through left PipeWire to fold it, which crackled on
 # voice and music; fold to stereo with the SDK's normalized mix instead.
 audio_force_stereo = true
+# The GPU emulation thread (PM4 to Vulkan translation) limits the frame rate
+# in free skate. Measured on Zen 2 (Deck A/B and a headless PC benchmark):
+# copy guest memory uploads before the render pass instead of ending it for
+# each one (~420 render pass breaks and ~1000 barriers per frame otherwise),
+# and submit once per frame instead of at each primary buffer end.
+vulkan_hoist_shared_memory_uploads = true
+vulkan_submit_on_primary_buffer_end = false
