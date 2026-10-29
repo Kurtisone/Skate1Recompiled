@@ -234,8 +234,18 @@ void StartLiveRenderer(plume::RenderDevice* device, rex::memory::Memory* memory)
 // Time spent in the renderer on the game's render thread, for the stats line.
 std::chrono::steady_clock::duration g_renderer_time{};
 
-void LiveRendererOnCall(uint32_t function, const PPCContext& before, uint32_t result, uint8_t* base) {
+// The vertex microcode the GPU runs (the last IM_LOAD D3D wrote).
+uint32_t g_vs_microcode = 0, g_vs_microcode_size = 0;
+
+void LiveRendererOnCall(uint32_t function, const PPCContext& before, uint32_t result, uint8_t* base,
+                        uint32_t packets_start) {
   if (!g_renderer) return;
+  const uint32_t packets_end = REX_LOAD_U32(kDevice + 48);
+  if (packets_end > packets_start && packets_end - packets_start < 0x10000) {
+    // The write pointer points at the last dword written.
+    xenos::FindVertexShaderLoad(base + packets_start + 4, packets_end - packets_start, g_vs_microcode,
+                                g_vs_microcode_size);
+  }
   const auto start = std::chrono::steady_clock::now();
   struct Timer {
     std::chrono::steady_clock::time_point start;
@@ -263,6 +273,10 @@ void LiveRendererOnCall(uint32_t function, const PPCContext& before, uint32_t re
       if (vs) {
         call.vs_physical = base + REX_LOAD_U32(vs + 32);
         call.vs_physical_size = vertex.physical_size;
+      }
+      if (g_vs_microcode) {
+        call.vs_microcode = g_memory->TranslatePhysical(g_vs_microcode);
+        call.vs_microcode_size = g_vs_microcode_size;
       }
       if (function == 0x82CB2E78) {
         if (!g_inline_vertices) break;

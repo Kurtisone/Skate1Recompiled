@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <cstring>
 #include <utility>
+#include <vector>
 
 namespace xenos {
 
@@ -108,6 +109,7 @@ struct VertexFetchInstruction {
   bool is_mini;         // shares the stride and slot of the previous full fetch
   uint32_t stride;      // dwords
   int32_t offset;       // dwords
+  int32_t exp_adjust;   // the fetched value is scaled by 2^exp_adjust
 };
 
 inline VertexFetchInstruction DecodeVertexFetchInstruction(const uint8_t* instruction) {
@@ -121,6 +123,7 @@ inline VertexFetchInstruction DecodeVertexFetchInstruction(const uint8_t* instru
   result.is_integer = (w1 >> 13) & 1;
   result.format = (w1 >> 16) & 0x3F;
   result.is_mini = (w1 >> 30) & 1;
+  result.exp_adjust = int32_t(w1 << 2) >> 26;  // bits 24..29, signed
   result.stride = w2 & 0xFF;
   result.offset = int32_t(w2 << 1) >> 9;  // bits 8..30, sign-extended
   return result;
@@ -170,6 +173,38 @@ inline void SwapEndian(uint8_t* data, size_t size, uint32_t endian) {
   }
 }
 
+// Scans PM4 packets (big-endian dwords) for the last vertex shader IM_LOAD:
+// returns true and its physical address and size in bytes.
+inline bool FindVertexShaderLoad(const uint8_t* packets, size_t size, uint32_t& address, uint32_t& bytes) {
+  bool found = false;
+  size_t pos = 0;
+  while (pos + 4 <= size) {
+    const uint32_t header = LoadBE32(packets + pos);
+    const uint32_t type = header >> 30;
+    if (type == 3) {
+      const uint32_t count = ((header >> 16) & 0x3FFF) + 1;
+      const uint32_t opcode = (header >> 8) & 0x7F;
+      if (opcode == 0x27 && count >= 2 && pos + 12 <= size) {  // IM_LOAD
+        const uint32_t addr_type = LoadBE32(packets + pos + 4);
+        const uint32_t start_size = LoadBE32(packets + pos + 8);
+        if ((addr_type & 3) == 0) {  // vertex
+          address = addr_type & ~3u;
+          bytes = (start_size & 0xFFFF) * 4;
+          found = true;
+        }
+      }
+      pos += 4 + size_t(count) * 4;
+    } else if (type == 0) {
+      pos += 4 + size_t(((header >> 16) & 0x3FFF) + 1) * 4;
+    } else if (type == 1) {
+      pos += 12;
+    } else {
+      pos += 4;  // type 2: nop
+    }
+  }
+  return found;
+}
+
 // Texture fetch constant (6 dwords, xe_gpu_texture_fetch_t in the SDK).
 struct TextureFetch {
   bool valid;         // type == texture
@@ -184,6 +219,9 @@ struct TextureFetch {
   uint32_t clamp[3];  // ClampMode
   uint32_t mag_filter, min_filter, mip_filter;
   bool is_signed;     // all components signed
+  uint32_t mip_address;  // physical, levels >= 1 (0 = none)
+  uint32_t mip_min_level, mip_max_level;
+  bool packed_mips;   // levels of 16 texels or less share one tile
 };
 
 inline TextureFetch DecodeTextureFetch(const DeviceState& state, uint32_t slot) {
@@ -214,6 +252,10 @@ inline TextureFetch DecodeTextureFetch(const DeviceState& state, uint32_t slot) 
   t.mag_filter = (d[3] >> 19) & 3;
   t.min_filter = (d[3] >> 21) & 3;
   t.mip_filter = (d[3] >> 23) & 3;
+  t.mip_min_level = (d[4] >> 2) & 0xF;
+  t.mip_max_level = (d[4] >> 6) & 0xF;
+  t.packed_mips = (d[5] >> 11) & 1;
+  t.mip_address = d[5] & 0xFFFFF000;
   return t;
 }
 
@@ -271,6 +313,121 @@ inline uint32_t TextureByteSize(const TextureFetch& t) {
   const uint32_t slice = (((pitch_blocks + 31) & ~31u) * ((blocks_y + 31) & ~31u) * bytes + 4095) & ~4095u;
   const uint32_t slices = t.dimension == 2 ? ((t.depth + 3) & ~3u) : t.depth;
   return slice * std::max(slices, 1u);
+}
+
+inline uint32_t Log2Ceil(uint32_t v) {
+  uint32_t r = 0;
+  while ((1u << r) < v) ++r;
+  return r;
+}
+inline uint32_t NextPow2(uint32_t v) { return 1u << Log2Ceil(v); }
+
+// Where one mip level of a 2D or cube texture is in guest memory (the SDK's
+// GetGuestTextureLayout and GetPackedMipOffset, from Xenia).
+struct MipLevel {
+  uint32_t address;       // physical address of the level (or of its packed tail)
+  uint32_t pitch_blocks;  // row pitch in blocks
+  uint32_t slice_bytes;   // stride between cube faces
+  uint32_t x_blocks, y_blocks;  // offset inside a packed tail
+  uint32_t width, height;
+};
+
+// Offset of packed level `mip` in its tail, in blocks.
+inline void PackedMipOffset(uint32_t width, uint32_t height, uint32_t block_size, uint32_t mip,
+                            uint32_t& x_blocks, uint32_t& y_blocks) {
+  const uint32_t log2_width = Log2Ceil(width), log2_height = Log2Ceil(height);
+  const uint32_t log2_size = std::min(log2_width, log2_height);
+  const uint32_t packed_base = log2_size > 4 ? log2_size - 4 : 0;
+  const uint32_t packed = mip - packed_base;
+  x_blocks = y_blocks = 0;
+  if (packed < 3) {
+    (log2_width > log2_height ? y_blocks : x_blocks) = 16 >> packed;
+  } else {
+    if (log2_width > log2_height) {
+      x_blocks = (1u << (log2_width - packed_base)) >> (packed - 2);
+    } else {
+      y_blocks = (1u << (log2_height - packed_base)) >> (packed - 2);
+    }
+  }
+  x_blocks /= block_size;
+  y_blocks /= block_size;
+}
+
+// The levels the host texture gets (base first), empty if unsupported.
+inline std::vector<MipLevel> GetMipLevels(const TextureFetch& t) {
+  std::vector<MipLevel> levels;
+  const TextureBlock block = GetTextureBlock(t.format);
+  if (!block.bytes) return levels;
+  const uint32_t max_for_size = Log2Ceil(std::max(t.width, t.height) + 1) - 1;
+  uint32_t max_level = t.mip_address ? std::min(t.mip_max_level, max_for_size) : 0;
+  const uint32_t packed_level =
+      t.packed_mips ? (Log2Ceil(std::min(t.width, t.height)) > 4 ? Log2Ceil(std::min(t.width, t.height)) - 4 : 0)
+                    : UINT32_MAX;
+  auto align = [](uint32_t v, uint32_t a) { return (v + a - 1) / a * a; };
+  for (uint32_t level = 0; level <= max_level; ++level) {
+    MipLevel m{};
+    m.width = std::max(t.width >> level, 1u);
+    m.height = std::max(t.height >> level, 1u);
+    // Levels from the packed one on live in its tail.
+    const uint32_t stored = std::min(level, packed_level);
+    uint32_t pitch_texels, rows_texels;
+    if (stored == 0) {
+      pitch_texels = std::max(t.pitch, t.width);
+      rows_texels = t.height;
+    } else {
+      pitch_texels = std::max(NextPow2(t.width) >> stored, 1u);
+      rows_texels = std::max(NextPow2(t.height) >> stored, 1u);
+    }
+    m.pitch_blocks = align(align(pitch_texels, block.size) / block.size, 32);
+    uint32_t row_bytes = m.pitch_blocks * block.bytes;
+    if (!t.tiled && stored != 0) row_bytes = align(row_bytes, 256);
+    if (!t.tiled) m.pitch_blocks = row_bytes / block.bytes;
+    const uint32_t rows = align(align(rows_texels, block.size) / block.size, 32);
+    m.slice_bytes = align(row_bytes * rows, 4096);
+    if (stored == 0) {
+      m.address = t.address;
+    } else {
+      // Mips follow one another from the mip address, each face by face.
+      uint32_t offset = 0;
+      for (uint32_t l = 1; l < stored; ++l) {
+        const uint32_t p = align(align(std::max(NextPow2(t.width) >> l, 1u), block.size) / block.size, 32);
+        uint32_t rb = p * block.bytes;
+        if (!t.tiled) rb = align(rb, 256);
+        const uint32_t r = align(align(std::max(NextPow2(t.height) >> l, 1u), block.size) / block.size, 32);
+        offset += align(rb * r, 4096) * (t.dimension == 3 ? 6 : 1);
+      }
+      m.address = t.mip_address + offset;
+    }
+    if (level >= packed_level) {
+      PackedMipOffset(t.width, t.height, block.size, level, m.x_blocks, m.y_blocks);
+    }
+    levels.push_back(m);
+  }
+  return levels;
+}
+
+// Copies one level of slice `slice` into a linear host layout, in host byte
+// order. Returns the row pitch in bytes.
+inline uint32_t UntileLevel(const uint8_t* physical, const TextureFetch& t, const MipLevel& m,
+                            uint32_t slice, uint8_t* out) {
+  const TextureBlock block = GetTextureBlock(t.format);
+  uint32_t log2 = 0;
+  while ((1u << log2) < block.bytes) ++log2;
+  const uint32_t blocks_x = (m.width + block.size - 1) / block.size;
+  const uint32_t blocks_y = (m.height + block.size - 1) / block.size;
+  const uint32_t row_bytes = blocks_x * block.bytes;
+  const uint8_t* src = physical + (m.address & 0x1FFFFFFF) + size_t(slice) * m.slice_bytes;
+  for (uint32_t y = 0; y < blocks_y; ++y) {
+    uint8_t* row = out + size_t(y) * row_bytes;
+    for (uint32_t x = 0; x < blocks_x; ++x) {
+      const uint32_t sx = x + m.x_blocks, sy = y + m.y_blocks;
+      const size_t offset = t.tiled ? size_t(TiledOffset2D(int32_t(sx), int32_t(sy), m.pitch_blocks, log2))
+                                    : size_t(sy) * m.pitch_blocks * block.bytes + size_t(sx) * block.bytes;
+      std::memcpy(row + x * block.bytes, src + offset, block.bytes);
+    }
+  }
+  SwapEndian(out, size_t(row_bytes) * blocks_y, t.endian);
+  return row_bytes;
 }
 
 // Offset of block (x, y, z) in a tiled 3D volume (pitch and height in

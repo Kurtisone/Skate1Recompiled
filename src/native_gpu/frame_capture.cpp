@@ -8,8 +8,9 @@
 // pointer arguments point at (all taken after the call), the vertex shader's
 // physical part as patched for each draw, the indices of indexed draws, the
 // inline vertices of BeginVertices /
-// EndVertices, and at the end the whole physical memory (<path>.phys, sparse)
-// for vertex/index buffers and textures. tools/d3d/capture.py reads it; the
+// EndVertices, and two frames later (the GPU command thread runs behind) the
+// whole physical memory (<path>.phys, sparse) for vertex/index buffers and
+// textures. tools/d3d/capture.py reads it; the
 // native renderer is developed against it offline (milestone B).
 //
 // Format (host little-endian): "SK1C", version (2), device address, snapshot
@@ -42,6 +43,11 @@
 REXCVAR_DEFINE_INT32(native_gpu_capture_seconds, 0, "Skate1",
                      "Capture the frame that starts this many seconds after the first Swap "
                      "(0 = off)");
+REXCVAR_DEFINE_INT32(native_gpu_capture_cut_event, -1, "Skate1",
+                     "Debugging the native renderer against the emulated GPU: past this event "
+                     "of the captured frame, its draws, clears and resolves are not executed, "
+                     "so the emulated GPU's intermediate results stay in memory (use with "
+                     "readback_resolve = full; -1 = off)");
 REXCVAR_DEFINE_STRING(native_gpu_capture_path, "frame.sk1c", "Skate1",
                       "Frame capture file (physical memory goes to <path>.phys)");
 
@@ -54,11 +60,14 @@ constexpr uint32_t kPhysicalSize = 0x20000000;
 
 rex::memory::Memory* g_memory = nullptr;
 
-enum class State { kIdle, kCapturing, kDone };
+enum class State { kIdle, kCapturing, kDumpPending, kDone };
 State g_state = State::kIdle;
 std::mutex g_mutex;
 FILE* g_file = nullptr;
 uint32_t g_events = 0;
+// Swaps to wait before writing the physical memory: the GPU command thread
+// runs behind the render thread.
+uint32_t g_dump_delay = 0;
 // BeginVertices' result and size, for the blob at EndVertices.
 uint32_t g_inline_vertices = 0;
 uint32_t g_inline_size = 0;
@@ -181,10 +190,14 @@ void FrameCaptureOnSwap(const PPCContext& ctx, uint8_t* base) {
     Write("DONE", 4);
     std::fclose(g_file);
     g_file = nullptr;
+    g_state = State::kDumpPending;
+    g_dump_delay = 2;
+    REXLOG_INFO("native_gpu: captured {} events into {}", g_events, REXCVAR_GET(native_gpu_capture_path));
+  } else if (g_state == State::kDumpPending && --g_dump_delay == 0) {
     const std::string path = REXCVAR_GET(native_gpu_capture_path);
     WritePhysical(path + ".phys");
     g_state = State::kDone;
-    REXLOG_INFO("native_gpu: captured {} events into {}", g_events, path);
+    REXLOG_INFO("native_gpu: physical memory written to {}.phys", path);
   }
 }
 
@@ -196,8 +209,17 @@ void Capture(uint32_t function, uint32_t trace_index, PPCContext& ctx, uint8_t* 
              void (*original)(PPCContext&, uint8_t*)) {
   D3DTraceEnter(trace_index, ctx, base);
   const PPCContext before = ctx;
-  original(ctx, base);
-  LiveRendererOnCall(function, before, ctx.r3.u32, base);
+  const int32_t cut = REXCVAR_GET(native_gpu_capture_cut_event);
+  // Past the cut, and until the delayed memory dump, nothing is executed.
+  const bool skip = cut >= 0 &&
+                    ((g_state == State::kCapturing && int32_t(g_events) > cut) ||
+                     g_state == State::kDumpPending) &&
+                    (function == 0x82CB38E8 || function == 0x82CB3500 || function == 0x82CC7510 ||
+                     function == 0x82CC7FF0);
+  const uint32_t packets_start = REX_LOAD_U32(kDevice + 48);  // command buffer write pointer
+  if (!skip) original(ctx, base);
+  const uint32_t packets_end = REX_LOAD_U32(kDevice + 48);
+  LiveRendererOnCall(function, before, ctx.r3.u32, base, packets_start);
   std::lock_guard<std::mutex> lock(g_mutex);
   if (g_state == State::kCapturing) {
     std::vector<Blob> blobs;
@@ -207,6 +229,11 @@ void Capture(uint32_t function, uint32_t trace_index, PPCContext& ctx, uint8_t* 
     } else if (function == 0x82CB2E78 && g_inline_vertices) {  // EndVertices
       blobs.push_back({g_inline_vertices, g_inline_size});
       g_inline_vertices = 0;
+    }
+    // The packets the call wrote (the draw's IM_LOAD names the microcode the
+    // GPU runs), last; the replay finds them by their end, device+48.
+    if (packets_end > packets_start && packets_end - packets_start < 0x10000) {
+      blobs.push_back({packets_start + 4, packets_end - packets_start});
     }
     RecordEvent(function, before, base, ctx.r3.u32, blobs);
   }

@@ -38,6 +38,11 @@ struct DrawCall {
   // The vertex shader's physical part as D3D patched it for this draw.
   const uint8_t* vs_physical = nullptr;
   uint32_t vs_physical_size = 0;
+  // Better: the vertex microcode the GPU runs, from the draw's IM_LOAD packet
+  // (D3D keeps patched copies per vertex layout; the object's own physical
+  // part may hold another layout's patch). Instructions from the start.
+  const uint8_t* vs_microcode = nullptr;
+  uint32_t vs_microcode_size = 0;
   // Indexed draws: the guest index buffer (physical address, size in bytes).
   uint32_t indices_address = 0;
   uint32_t indices_size = 0;
@@ -126,6 +131,8 @@ class Renderer {
     uint32_t microcode_offset = 0;
     struct Element {
       uint32_t address, usage, usage_index;
+      uint32_t dst_register;  // the original vfetch's destination register
+      uint32_t dst_swizzle;   // and its destination swizzle (components written)
     };
     std::vector<Element> elements;
     std::unique_ptr<plume::RenderShader> shader;

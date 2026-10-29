@@ -15,8 +15,10 @@ class Memory;
 
 void StartLiveRenderer(plume::RenderDevice* device, rex::memory::Memory* memory);
 
-// A hooked D3D call has run: `before` holds its arguments, `result` its r3.
-void LiveRendererOnCall(uint32_t function, const PPCContext& before, uint32_t result, uint8_t* base);
+// A hooked D3D call has run: `before` holds its arguments, `result` its r3,
+// `packets_start` the command buffer write pointer before the call.
+void LiveRendererOnCall(uint32_t function, const PPCContext& before, uint32_t result, uint8_t* base,
+                        uint32_t packets_start);
 
 // Called from the Swap hook before D3D's Swap runs.
 void LiveRendererOnSwap(uint8_t* base);

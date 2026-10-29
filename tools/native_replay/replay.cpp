@@ -174,9 +174,16 @@ int main(int argc, char** argv) {
   uint32_t frontBuffer = 0;
   std::vector<uint32_t> resolveTargets;
   const Event* begin = nullptr;  // last BeginVertices
+  uint32_t vsMicrocode = 0, vsMicrocodeSize = 0;  // the last vertex IM_LOAD
   for (size_t i = first; i <= last; ++i) {
     const Event& e = events[i];
     const xenos::DeviceState state{e.device.data()};
+    // The packets the call wrote end at the write pointer (device+48).
+    for (const Blob& blob : e.blobs) {
+      if (blob.address + blob.data.size() == state.U32(48) + 4) {
+        xenos::FindVertexShaderLoad(blob.data.data(), blob.data.size(), vsMicrocode, vsMicrocodeSize);
+      }
+    }
     switch (e.function) {
       case kBeginVertices:
         begin = &e;
@@ -221,6 +228,10 @@ int main(int argc, char** argv) {
         if (e.blobs.size() > blob) {
           call.vs_physical = e.blobs[blob].data.data();
           call.vs_physical_size = uint32_t(e.blobs[blob].data.size());
+        }
+        if (vsMicrocode) {
+          call.vs_microcode = physical + (vsMicrocode & 0x1FFFFFFF);
+          call.vs_microcode_size = vsMicrocodeSize;
         }
         renderer.Draw(call);
         break;
@@ -296,6 +307,11 @@ int main(int argc, char** argv) {
     for (uint32_t address : resolveTargets) {
       if (!renderer.ReadResolved(address, rgba, width, height)) continue;
       char path[512];
+      std::snprintf(path, sizeof(path), "%s/%08X.raw", dir, address);
+      if (FILE* raw = std::fopen(path, "wb")) {  // all 4 bytes per texel
+        std::fwrite(rgba.data(), 1, rgba.size(), raw);
+        std::fclose(raw);
+      }
       std::snprintf(path, sizeof(path), "%s/%08X.ppm", dir, address);
       FILE* f = std::fopen(path, "wb");
       std::fprintf(f, "P6\n%u %u\n255\n", width, height);

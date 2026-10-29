@@ -45,8 +45,8 @@ rex::memory::Memory* g_memory = nullptr;
 
 std::mutex g_mutex;
 std::unordered_map<uint32_t, ShaderObject> g_objects;
-// Containers' virtual parts by cache key (the vertex elements the renderer
-// needs), copied at creation since the game frees them afterwards.
+// Containers by cache key (vertex elements and original microcode for the
+// renderer), copied at creation since the game frees them afterwards.
 std::unordered_map<uint64_t, std::vector<uint8_t>> g_containers;
 uint32_t g_misses = 0;
 
@@ -73,7 +73,10 @@ void OnCreate(uint8_t* base, uint32_t object, uint32_t container) {
   std::lock_guard<std::mutex> lock(g_mutex);
   g_objects[object] = {entry, REX_LOAD_U32(container + 8)};
   if (entry && !g_containers.count(hash)) {
-    g_containers.emplace(hash, std::vector<uint8_t>(base + container, base + container + virtual_size));
+    // Virtual and physical parts (the renderer reads the original vertex
+    // fetches' destination registers from the microcode).
+    g_containers.emplace(hash, std::vector<uint8_t>(base + container, base + container + virtual_size +
+                                                                          REX_LOAD_U32(container + 8)));
   }
   if (entry) {
     if (REXCVAR_GET(native_gpu_shader_log)) {

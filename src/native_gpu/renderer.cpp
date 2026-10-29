@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 
 #define XXH_INLINE_ALL
@@ -494,6 +495,19 @@ Renderer::Shader* Renderer::GetShader(uint64_t key) {
     const uint8_t* encoded = &spirv_[entry->spirvOffset];
     std::vector<uint8_t> decoded(smolv::GetDecodedBufferSize(encoded, entry->spirvSize));
     smolv::Decode(encoded, entry->spirvSize, decoded.data(), decoded.size());
+    // Debugging: NATIVE_GPU_SHADER_OVERRIDE=<dir> replaces a shader by <dir>/<KEY>.spv.
+    if (const char* dir = std::getenv("NATIVE_GPU_SHADER_OVERRIDE")) {
+      char path[512];
+      std::snprintf(path, sizeof(path), "%s/%016llX.spv", dir, (unsigned long long)key);
+      if (FILE* f = std::fopen(path, "rb")) {
+        std::fseek(f, 0, SEEK_END);
+        decoded.resize(size_t(std::ftell(f)));
+        std::fseek(f, 0, SEEK_SET);
+        if (std::fread(decoded.data(), 1, decoded.size(), f) != decoded.size()) decoded.clear();
+        std::fclose(f);
+        std::fprintf(stderr, "native_gpu: shader %016llX overridden\n", (unsigned long long)key);
+      }
+    }
     info.shader = device_->createShader(decoded.data(), decoded.size(), "main", RenderShaderFormat::SPIRV);
     if (const uint8_t* data = container_ ? container_(key) : nullptr) {
       const uint32_t shader = xenos::LoadBE32(data + 0x18);
@@ -505,7 +519,14 @@ Renderer::Shader* Renderer::GetShader(uint64_t key) {
         const uint32_t count = xenos::LoadBE32(data + shader + 0x1C);
         for (uint32_t i = 0; i < count; ++i) {
           const uint32_t value = xenos::LoadBE32(data + shader + 0x24 + 4 * (field18 + i));
-          info.elements.push_back({value & 0xFFF, (value >> 12) & 0xF, (value >> 16) & 0xF});
+          const uint32_t address = value & 0xFFF;
+          // The original vfetch's destination register (from the container's
+          // microcode): what the recompiled shader reads the element from.
+          const uint32_t virtualSize = xenos::LoadBE32(data + 4);
+          const uint8_t* instruction = data + virtualSize + info.microcode_offset + address * 12;
+          info.elements.push_back({address, (value >> 12) & 0xF, (value >> 16) & 0xF,
+                                   (xenos::LoadBE32(instruction) >> 12) & 0x3F,
+                                   xenos::LoadBE32(instruction + 4) & 0xFFF});
         }
       }
     }
@@ -569,10 +590,12 @@ uint32_t Renderer::GetSampler(const xenos::TextureFetch& t) {
   desc.addressW = address(t.clamp[2]);
   desc.magFilter = t.mag_filter == 1 ? RenderFilter::LINEAR : RenderFilter::NEAREST;
   desc.minFilter = t.min_filter == 1 ? RenderFilter::LINEAR : RenderFilter::NEAREST;
-  desc.mipmapMode = RenderMipmapMode::NEAREST;
-  desc.maxLOD = 0.0f;
+  // Mip filter: 0 point, 1 linear, 2 base map only.
+  desc.mipmapMode = t.mip_filter == 1 ? RenderMipmapMode::LINEAR : RenderMipmapMode::NEAREST;
+  desc.maxLOD = t.mip_filter == 2 ? 0.0f : 16.0f;
   const uint32_t fields[] = {uint32_t(desc.addressU), uint32_t(desc.addressV), uint32_t(desc.addressW),
-                             uint32_t(desc.magFilter), uint32_t(desc.minFilter)};
+                             uint32_t(desc.magFilter), uint32_t(desc.minFilter), uint32_t(desc.mipmapMode),
+                             uint32_t(desc.maxLOD)};
   auto [it, inserted] = sampler_indices_.try_emplace(XXH3_64bits(fields, sizeof(fields)), 0);
   if (inserted && samplers_.size() < kSamplerHeapSize) {
     it->second = uint32_t(samplers_.size());
@@ -635,29 +658,34 @@ Renderer::Texture* Renderer::GetGuestTexture(const xenos::TextureFetch& t) {
     return nullptr;
   }
   const bool cube = t.dimension == 3;
+  const std::vector<xenos::MipLevel> levels = xenos::GetMipLevels(t);
   guest.format = format;
   guest.width = t.width;
   guest.height = t.height;
   guest.texture = device_->createTexture(RenderTextureDesc::Texture(
-      RenderTextureDimension::TEXTURE_2D, t.width, t.height, 1, 1, cube ? 6 : 1, format,
+      RenderTextureDimension::TEXTURE_2D, t.width, t.height, 1, uint32_t(levels.size()), cube ? 6 : 1, format,
       cube ? RenderTextureFlag::CUBE : RenderTextureFlag::NONE));
   Transition(guest.texture.get(), RenderTextureLayout::COPY_DEST);
   const xenos::TextureBlock block = xenos::GetTextureBlock(t.format);
-  const uint32_t blocksX = (t.width + block.size - 1) / block.size;
-  const uint32_t blocksY = (t.height + block.size - 1) / block.size;
-  for (uint32_t slice = 0; slice < (cube ? 6u : 1u); ++slice) {
-    const uint64_t at = Allocate(nullptr, uint64_t(blocksX) * blocksY * block.bytes, 512);
-    xenos::UntileTexture(physical_, t, slice, upload_memory_ + at);
-    commands_->copyTextureRegion(
-        RenderTextureCopyLocation::Subresource(guest.texture.get(), 0, slice),
-        RenderTextureCopyLocation::PlacedFootprint(upload_, format, t.width, t.height, 1,
-                                                   blocksX * block.size, at));
+  for (uint32_t level = 0; level < levels.size(); ++level) {
+    const xenos::MipLevel& m = levels[level];
+    const uint32_t blocksX = (m.width + block.size - 1) / block.size;
+    const uint32_t blocksY = (m.height + block.size - 1) / block.size;
+    for (uint32_t slice = 0; slice < (cube ? 6u : 1u); ++slice) {
+      const uint64_t at = Allocate(nullptr, uint64_t(blocksX) * blocksY * block.bytes, 512);
+      xenos::UntileLevel(physical_, t, m, slice, upload_memory_ + at);
+      commands_->copyTextureRegion(
+          RenderTextureCopyLocation::Subresource(guest.texture.get(), level, slice),
+          RenderTextureCopyLocation::PlacedFootprint(upload_, format, m.width, m.height, 1,
+                                                     blocksX * block.size, at));
+    }
   }
   Transition(guest.texture.get(), RenderTextureLayout::SHADER_READ);
+  if (inserted) ++stats_["texture levels " + std::to_string(levels.size())];
   RenderTextureViewDesc view;
   view.format = format;
   view.dimension = cube ? RenderTextureViewDimension::TEXTURE_CUBE : RenderTextureViewDimension::TEXTURE_2D;
-  view.mipLevels = 1;
+  view.mipLevels = uint32_t(levels.size());
   view.componentMapping = SwizzleMapping(t.swizzle);
   guest.view = guest.texture->createTextureView(view);
   if (!guest.index) guest.index = cube ? next_cube_++ : next_2d_++;
@@ -878,7 +906,7 @@ void Renderer::Draw(const DrawCall& call) {
     ++stats_["draw skipped: shader not in cache"];
     return;
   }
-  if (!call.vs_physical) {
+  if (!call.vs_physical && !call.vs_microcode) {
     ++stats_["draw skipped: no vertex microcode"];
     return;
   }
@@ -893,23 +921,58 @@ void Renderer::Draw(const DrawCall& call) {
   std::vector<std::vector<std::pair<uint32_t, uint32_t>>> halfSwaps;
   uint32_t lastStride = 0, lastSlot = 0;
   bool packedNormals = false, halfNormals = false;
+  const uint8_t* microcode = call.vs_microcode ? call.vs_microcode : call.vs_physical + vs->microcode_offset;
+  const size_t microcodeSize = call.vs_microcode ? call.vs_microcode_size
+                                                 : call.vs_physical_size - std::min<size_t>(call.vs_physical_size,
+                                                                                            vs->microcode_offset);
   for (const Shader::Element& element : vs->elements) {
-    const size_t at = vs->microcode_offset + element.address * 12;
-    if (at + 12 > call.vs_physical_size) {
+    // D3D relinks the vertex fetches it loads (registers may move between
+    // fetch instructions): use the fetch writing the element's original
+    // destination register and components, among the elements' fetch slots.
+    size_t at = element.address * 12;
+    if (call.vs_microcode) {
+      for (const Shader::Element& other : vs->elements) {
+        const size_t candidate = other.address * 12;
+        if (candidate + 12 <= microcodeSize &&
+            ((xenos::LoadBE32(microcode + candidate) >> 12) & 0x3F) == element.dst_register &&
+            (xenos::LoadBE32(microcode + candidate + 4) & 0xFFF) == element.dst_swizzle &&
+            (xenos::LoadBE32(microcode + candidate) & 0x1F) == 0) {
+          at = candidate;
+          break;
+        }
+      }
+    }
+    if (at + 12 > microcodeSize) {
       ++stats_["draw skipped: vertex fetch outside microcode"];
       return;
     }
-    xenos::VertexFetchInstruction fetch = xenos::DecodeVertexFetchInstruction(call.vs_physical + at);
+    xenos::VertexFetchInstruction fetch = xenos::DecodeVertexFetchInstruction(microcode + at);
     if (!fetch.is_vfetch) {
       ++stats_["draw skipped: vertex element is not a vfetch"];
       return;
     }
     if (fetch.is_mini) {
+      // A mini fetch takes the stride and slot of the full fetch before it
+      // in the microcode.
       fetch.stride = lastStride;
       fetch.fetch_slot = lastSlot;
+      for (size_t back = at; back >= 12;) {
+        back -= 12;
+        const xenos::VertexFetchInstruction full = xenos::DecodeVertexFetchInstruction(microcode + back);
+        if (full.is_vfetch && !full.is_mini) {
+          fetch.stride = full.stride;
+          fetch.fetch_slot = full.fetch_slot;
+          break;
+        }
+      }
     } else {
       lastStride = fetch.stride;
       lastSlot = fetch.fetch_slot;
+    }
+    if (fetch.exp_adjust) {
+      ++stats_["vertex exp_adjust " + std::to_string(fetch.exp_adjust) + ": usage " +
+               std::to_string(element.usage) + "." + std::to_string(element.usage_index) + " format " +
+               std::to_string(fetch.format)];
     }
     const bool raw = IsRawUsage(element.usage);
     const RenderFormat format = raw ? RawVertexFormat(fetch.format) : VertexFormat(fetch, element.usage);
@@ -938,6 +1001,21 @@ void Renderer::Draw(const DrawCall& call) {
       halfSwaps[slot].emplace_back(uint32_t(fetch.offset * 4), 2);
     }
     inputElements.emplace_back("", 0, uint32_t(location), format, slot, uint32_t(fetch.offset * 4));
+    // Debugging: NATIVE_GPU_DUMP_VERTEX=<vertex shader key> prints the raw
+    // dwords of the first vertices for each element.
+    static const char* dumpKey = std::getenv("NATIVE_GPU_DUMP_VERTEX");
+    static int dumped = 0;
+    if (dumpKey && std::strtoull(dumpKey, nullptr, 16) == call.vs_key && dumped < 24 && !call.inline_vertices) {
+      ++dumped;
+      const xenos::VertexFetch vf = xenos::DecodeVertexFetch(state, fetch.fetch_slot);
+      std::fprintf(stderr, "usage %u.%u format %u signed %d offset %d stride %u:", element.usage,
+                   element.usage_index, fetch.format, fetch.is_signed, fetch.offset, fetch.stride);
+      for (uint32_t v = 0; v < 4; ++v) {
+        const uint8_t* p = physical_ + (vf.address & 0x1FFFFFFF) + v * fetch.stride * 4 + fetch.offset * 4;
+        std::fprintf(stderr, " %08x", xenos::LoadBE32(p));
+      }
+      std::fprintf(stderr, "\n");
+    }
   }
   std::vector<RenderVertexBufferView> vertexViews;
   for (uint32_t slot = 0; slot < slotFetch.size(); ++slot) {

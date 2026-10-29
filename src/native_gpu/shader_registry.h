@@ -22,6 +22,6 @@ struct ShaderObject {
 // A shader object the game passed to SetPixelShader / SetVertexShader.
 ShaderObject FindShaderObject(uint32_t object, bool pixel);
 
-// The virtual part of the container of a cached shader (big-endian), or
-// nullptr if no object with that shader was created.
+// The container of a cached shader (big-endian, virtual then physical part),
+// or nullptr if no object with that shader was created.
 const uint8_t* FindShaderContainer(uint64_t key);

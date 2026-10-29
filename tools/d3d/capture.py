@@ -70,6 +70,7 @@ def read(path):
         function, *rest = struct.unpack_from("<I8III", data, pos + 4)
         regs, (result, lr) = rest[:8], rest[8:]
         vs, ps, count = struct.unpack_from("<QQI", data, pos + 48 + extra)
+        f1 = struct.unpack_from("<f", data, pos + 48)[0] if extra else None
         pos += 4 + 4 + 32 + 8 + extra + 16 + 4
         dev = data[pos:pos + snapshot]
         pos += snapshot
@@ -79,6 +80,7 @@ def read(path):
             blobs.append((address, data[pos + 8:pos + 8 + size]))
             pos += 8 + size
         events.append(Event(function, regs, result, lr, vs, ps, dev, blobs))
+        events[-1].f1 = f1  # ClearF / Resolve / BeginTiling Z (version 2)
     assert data[pos:pos + 4] == b"DONE", "truncated capture"
     return events
 
