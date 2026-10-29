@@ -31,6 +31,30 @@ native one covers everything.
   compile to SPIR-V/DXIL once raw constant registers are handled (branch
   `skate1` of a local XenosRecomp clone next to this repo, one commit).
 
+## Design (2026-10-29)
+
+D3D keeps the whole draw state in its device shadow (registers in Xenos
+layout, float constants, fetch constants) and only turns dirty parts into
+PM4 in the draw (`82CB38E8`, flush helper `82CCD390`: dirty bit k of a group
+is register base+k at device offset base+4k, MSB first; command buffer write
+pointer at device+48). So the game's own setters stay as they are (cheap
+shadow writes) and the native layer:
+
+- hooks the draw and reads the shadow directly to build the host draw
+  (pipeline key from the render state registers, XenosRecomp constants from
+  device+1920 / +6016 byte-swapped, bools, fetch constants);
+- hooks the few calls that give object identity: SetTexture, stream source,
+  indices, shaders, buffer/texture Lock/Unlock (explicit uploads, no page
+  watching), render targets, Clear, Resolve, tiling, Swap;
+- does not emit PM4 for draws it handles, so the GPU emulation thread only
+  sees what is left.
+
+Shadow offset -> register groups (from the draw flush): +1920 c0 VS, +6016
+c256 PS, +10112 0x4900 bools, +10368 0x2000, +10444 0x2100, +10528 0x2180,
++10548 0x2200, +10596 0x2280, +10680 0x2300, +10832 0x2380.
+`tools/d3d/name_setters.py <d3d_trace.txt>` lists the registers each traced
+entry point writes.
+
 ## Steps
 
 1. Shaders: capture the shader containers the game creates and check
