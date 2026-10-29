@@ -131,12 +131,16 @@ tiling: 3x shadow/light passes (512x512 and 2048x512, 16_16), the scene
 composite 1280x720, HUD (~25 draws), final resolve to the front buffer
 1EC08000. 682 draws, 62 shader pairs, all in the cache.
 
-Milestone B status (2026-10-29): tools/native_replay renders the captured
-scene pass with plume: 620 of 624 draws, 483 textures, recompiled shaders
-and lighting; the image matches the emulated scene before post-processing.
-Next: replay the whole frame (shadow and light passes, resolves into
-textures, post-processing, HUD), mips, 3D textures, USCALED vertex bytes,
-quad lists, then move the renderer into the game behind native_gpu.
+Milestone B reached (2026-10-29): src/native_gpu/renderer.cpp replays the
+whole captured MJC frame through tools/native_replay (682 draws, 29
+resolves, 34 clears, 512 textures): scene, post-processing and HUD, close
+to the emulated frame. Findings: ClearF flags 0xF color / 0x10 depth /
+0x20 stencil; BeginTiling(flags, count, rects, clear color) clears each
+tile, and resolve clears (0x100/0x200) only clear the resolved tile;
+resolve rects are in surface coordinates with an optional destination
+point; the final composite grades through a 32^3 3D LUT. Missing: shadows
+(16_16 shadow map resolves), mips, integer vertex bytes as floats
+(skinning), then the in-game path behind native_gpu.
 
 Milestone B: replay one captured frame offscreen with plume and save it next
 to the emulated frame on the headless benchmark for comparison.
