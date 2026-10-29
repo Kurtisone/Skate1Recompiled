@@ -12,6 +12,7 @@
 #include <rex/logging.h>
 #include <rex/runtime.h>
 
+#include "frame_capture.h"
 #include "shader_registry.h"
 
 REXCVAR_DEFINE_BOOL(native_gpu, false, "Skate1",
@@ -32,6 +33,7 @@ void StartNativeGpu(rex::Runtime* runtime) {
     return;
   }
   StartShaderRegistry(runtime->memory());
+  StartFrameCapture(runtime->memory());
   g_interface = plume::CreateVulkanInterface();
   if (!g_interface) {
     REXLOG_ERROR("native_gpu: no Vulkan interface");

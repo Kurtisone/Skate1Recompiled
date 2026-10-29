@@ -36,6 +36,7 @@ if(SKATE1_NATIVE_GPU)
     add_subdirectory(third_party/plume)
     list(APPEND SKATE1_SOURCES
         src/native_gpu/native_gpu.cpp
+        src/native_gpu/frame_capture.cpp
         src/native_gpu/shader_registry.cpp)
     # Recompiled shaders, generated from the game's own files (not
     # distributable): tools/d3d/build_shader_cache.sh.

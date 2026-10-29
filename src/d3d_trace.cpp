@@ -71,10 +71,6 @@ const uint32_t kD3DTraceAddresses[365] = {
 };
 const uint32_t kD3DTraceCount = 365;
 const uint32_t kD3DTraceSwapIndex = 313;
-const uint32_t kD3DTraceSetPixelShaderIndex = 243;
-const uint32_t kD3DTraceSetVertexShaderIndex = 245;
-const uint32_t kD3DTraceCreatePixelShaderIndex = 263;
-const uint32_t kD3DTraceCreateVertexShaderIndex = 264;
 
 REX_HOOK_RAW(sub_82C80058) {
   D3DTraceEnter(0, ctx, base);
@@ -761,16 +757,20 @@ REX_HOOK_RAW(sub_82CB1E48) {
   __imp__sub_82CB1E48(ctx, base);
   D3DTraceLeave(136);
 }
+#ifndef SKATE1_NATIVE_GPU
 REX_HOOK_RAW(sub_82CB29D8) {
   D3DTraceEnter(137, ctx, base);
   __imp__sub_82CB29D8(ctx, base);
   D3DTraceLeave(137);
 }
+#endif
+#ifndef SKATE1_NATIVE_GPU
 REX_HOOK_RAW(sub_82CB2E78) {
   D3DTraceEnter(138, ctx, base);
   __imp__sub_82CB2E78(ctx, base);
   D3DTraceLeave(138);
 }
+#endif
 REX_HOOK_RAW(sub_82CB2EF8) {
   D3DTraceEnter(139, ctx, base);
   __imp__sub_82CB2EF8(ctx, base);
@@ -781,16 +781,20 @@ REX_HOOK_RAW(sub_82CB3428) {
   __imp__sub_82CB3428(ctx, base);
   D3DTraceLeave(140);
 }
+#ifndef SKATE1_NATIVE_GPU
 REX_HOOK_RAW(sub_82CB3500) {
   D3DTraceEnter(141, ctx, base);
   __imp__sub_82CB3500(ctx, base);
   D3DTraceLeave(141);
 }
+#endif
+#ifndef SKATE1_NATIVE_GPU
 REX_HOOK_RAW(sub_82CB38E8) {
   D3DTraceEnter(142, ctx, base);
   __imp__sub_82CB38E8(ctx, base);
   D3DTraceLeave(142);
 }
+#endif
 REX_HOOK_RAW(sub_82CB4B78) {
   D3DTraceEnter(143, ctx, base);
   __imp__sub_82CB4B78(ctx, base);
@@ -1171,11 +1175,13 @@ REX_HOOK_RAW(sub_82CB9060) {
   __imp__sub_82CB9060(ctx, base);
   D3DTraceLeave(218);
 }
+#ifndef SKATE1_NATIVE_GPU
 REX_HOOK_RAW(sub_82CB9270) {
   D3DTraceEnter(219, ctx, base);
   __imp__sub_82CB9270(ctx, base);
   D3DTraceLeave(219);
 }
+#endif
 REX_HOOK_RAW(sub_82CB9400) {
   D3DTraceEnter(220, ctx, base);
   __imp__sub_82CB9400(ctx, base);
@@ -1211,26 +1217,32 @@ REX_HOOK_RAW(sub_82CB9F28) {
   __imp__sub_82CB9F28(ctx, base);
   D3DTraceLeave(226);
 }
+#ifndef SKATE1_NATIVE_GPU
 REX_HOOK_RAW(sub_82CB9FB8) {
   D3DTraceEnter(227, ctx, base);
   __imp__sub_82CB9FB8(ctx, base);
   D3DTraceLeave(227);
 }
+#endif
+#ifndef SKATE1_NATIVE_GPU
 REX_HOOK_RAW(sub_82CBA070) {
   D3DTraceEnter(228, ctx, base);
   __imp__sub_82CBA070(ctx, base);
   D3DTraceLeave(228);
 }
+#endif
 REX_HOOK_RAW(sub_82CBA3D8) {
   D3DTraceEnter(229, ctx, base);
   __imp__sub_82CBA3D8(ctx, base);
   D3DTraceLeave(229);
 }
+#ifndef SKATE1_NATIVE_GPU
 REX_HOOK_RAW(sub_82CBA6B0) {
   D3DTraceEnter(230, ctx, base);
   __imp__sub_82CBA6B0(ctx, base);
   D3DTraceLeave(230);
 }
+#endif
 REX_HOOK_RAW(sub_82CBC488) {
   D3DTraceEnter(231, ctx, base);
   __imp__sub_82CBC488(ctx, base);
@@ -1504,26 +1516,34 @@ REX_HOOK_RAW(sub_82CC4C20) {
   __imp__sub_82CC4C20(ctx, base);
   D3DTraceLeave(283);
 }
+#ifndef SKATE1_NATIVE_GPU
 REX_HOOK_RAW(sub_82CC4E78) {
   D3DTraceEnter(284, ctx, base);
   __imp__sub_82CC4E78(ctx, base);
   D3DTraceLeave(284);
 }
+#endif
+#ifndef SKATE1_NATIVE_GPU
 REX_HOOK_RAW(sub_82CC4FF0) {
   D3DTraceEnter(285, ctx, base);
   __imp__sub_82CC4FF0(ctx, base);
   D3DTraceLeave(285);
 }
+#endif
+#ifndef SKATE1_NATIVE_GPU
 REX_HOOK_RAW(sub_82CC5578) {
   D3DTraceEnter(286, ctx, base);
   __imp__sub_82CC5578(ctx, base);
   D3DTraceLeave(286);
 }
+#endif
+#ifndef SKATE1_NATIVE_GPU
 REX_HOOK_RAW(sub_82CC7510) {
   D3DTraceEnter(287, ctx, base);
   __imp__sub_82CC7510(ctx, base);
   D3DTraceLeave(287);
 }
+#endif
 REX_HOOK_RAW(sub_82CC7638) {
   D3DTraceEnter(288, ctx, base);
   __imp__sub_82CC7638(ctx, base);
@@ -1534,11 +1554,13 @@ REX_HOOK_RAW(sub_82CC7960) {
   __imp__sub_82CC7960(ctx, base);
   D3DTraceLeave(289);
 }
+#ifndef SKATE1_NATIVE_GPU
 REX_HOOK_RAW(sub_82CC7FF0) {
   D3DTraceEnter(290, ctx, base);
   __imp__sub_82CC7FF0(ctx, base);
   D3DTraceLeave(290);
 }
+#endif
 REX_HOOK_RAW(sub_82CC8FA0) {
   D3DTraceEnter(291, ctx, base);
   __imp__sub_82CC8FA0(ctx, base);

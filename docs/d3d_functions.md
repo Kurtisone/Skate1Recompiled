@@ -30,7 +30,7 @@ written state fit, ? = guess.
 | 82CBA6B0 | SetRenderTarget | index, surface | 26 | *likely*: RB_COLOR*_INFO, RB_DEPTH_INFO, color masks |
 | 82CBA070 | SetDepthStencilSurface ? | 0, surface | 17 | ? |
 | 82CB9FB8 | SetViewport | viewport struct | 33 | *likely*: engine passes x, y, w, h, min/max z |
-| 82CB9270 | SetScissorRect ? | rect | 33 | writes registers 0x2011/0x2012 |
+| 82CB9270 | ? (r3 = 0x4000537C, not the device) | | 159 | writes registers 0x2011/0x2012; called around every pass |
 | 82CC7510 | ClearF | flags (0x10), rect, color | 23 | *likely*: called at untiled pass begin |
 | 82CC4FF0 | BeginTiling | flags, count, tile rects, ... | 1 | **sure** (count 3, 1280x256 bands) |
 | 82CC5578 | EndTiling | ... | 1 | *likely*: reaches the resolve |

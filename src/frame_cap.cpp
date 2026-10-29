@@ -16,6 +16,9 @@
 #include <rex/hook.h>
 
 #include "d3d_trace.h"
+#ifdef SKATE1_NATIVE_GPU
+#include "native_gpu/frame_capture.h"
+#endif
 #include "generated/default/skate1_init.h"
 
 REXCVAR_DEFINE_INT32(frame_rate_cap, 0, "Skate1",
@@ -45,6 +48,9 @@ REX_HOOK_RAW(sub_82CCBE98) {
     next_frame = std::max(next_frame + frame_time, now + frame_time - frame_time / 4);
   }
   D3DTraceEnter(kD3DTraceSwapIndex, ctx, base);
+#ifdef SKATE1_NATIVE_GPU
+  FrameCaptureOnSwap(ctx, base);
+#endif
   __imp__sub_82CCBE98(ctx, base);
   D3DTraceLeave(kD3DTraceSwapIndex);
 }
