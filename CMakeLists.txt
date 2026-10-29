@@ -34,7 +34,19 @@ set(SKATE1_SOURCES
 option(SKATE1_NATIVE_GPU "Build the native D3D layer" OFF)
 if(SKATE1_NATIVE_GPU)
     add_subdirectory(third_party/plume)
-    list(APPEND SKATE1_SOURCES src/native_gpu/native_gpu.cpp)
+    list(APPEND SKATE1_SOURCES
+        src/native_gpu/native_gpu.cpp
+        src/native_gpu/shader_registry.cpp)
+    # Recompiled shaders, generated from the game's own files (not
+    # distributable): tools/d3d/build_shader_cache.sh.
+    set(SKATE1_SHADER_CACHE "${CMAKE_CURRENT_SOURCE_DIR}/out/native/shader_cache.cpp"
+        CACHE FILEPATH "XenosRecomp shader cache for the native D3D layer")
+    if(NOT EXISTS "${SKATE1_SHADER_CACHE}")
+        message(FATAL_ERROR "SKATE1_NATIVE_GPU needs ${SKATE1_SHADER_CACHE}: run tools/d3d/build_shader_cache.sh")
+    endif()
+    list(APPEND SKATE1_SOURCES "${SKATE1_SHADER_CACHE}")
+    set_source_files_properties("${SKATE1_SHADER_CACHE}" PROPERTIES
+        INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/src/native_gpu")
 endif()
 
 # Exe/window icon. The icon is the game's cover art, so it is not committed:

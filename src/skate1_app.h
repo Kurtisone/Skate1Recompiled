@@ -45,7 +45,7 @@ class Skate1App : public rex::ReXApp {
   void OnPostSetup() override {
     StartGuestOutputCapture(runtime());
 #ifdef SKATE1_NATIVE_GPU
-    StartNativeGpu();
+    StartNativeGpu(runtime());
 #endif
   }
   // void OnCreateDialogs(rex::ui::ImGuiDrawer* drawer) override {}

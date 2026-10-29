@@ -18,6 +18,10 @@ RANGES = [(0x82C80000, 0x82D10000), (0x82F48000, 0x82F4C000)]
 SWAP = 0x82CCBE98  # D3DDevice_Swap: frame boundary
 # Hooked elsewhere (src/frame_cap.cpp), which reports to the tracer itself.
 HOOKED_ELSEWHERE = {SWAP}
+# Hooked by the native D3D layer when it is built (src/native_gpu), which
+# also reports to the tracer: named so it can find its trace index.
+NATIVE_HOOKS = {0x82CBDFE8: "SetPixelShader", 0x82CBE2E8: "SetVertexShader",
+                0x82CC0EB0: "CreatePixelShader", 0x82CC1038: "CreateVertexShader"}
 
 
 def in_range(a):
@@ -52,15 +56,22 @@ def main():
         out.append("    " + ", ".join(f"0x{a:08X}" for a in targets[i:i + 6]) + ",\n")
     out.append("};\n")
     out.append(f"const uint32_t kD3DTraceCount = {len(targets)};\n")
-    out.append(f"const uint32_t kD3DTraceSwapIndex = {swap_index};\n\n")
+    out.append(f"const uint32_t kD3DTraceSwapIndex = {swap_index};\n")
+    for a, name in sorted(NATIVE_HOOKS.items()):
+        out.append(f"const uint32_t kD3DTrace{name}Index = {targets.index(a)};\n")
+    out.append("\n")
     for i, a in enumerate(targets):
         if a in HOOKED_ELSEWHERE:
             continue
+        if a in NATIVE_HOOKS:
+            out.append("#ifndef SKATE1_NATIVE_GPU\n")
         out.append(f"REX_HOOK_RAW(sub_{a:08X}) {{\n"
                    f"  D3DTraceEnter({i}, ctx, base);\n"
                    f"  __imp__sub_{a:08X}(ctx, base);\n"
                    f"  D3DTraceLeave({i});\n"
                    f"}}\n")
+        if a in NATIVE_HOOKS:
+            out.append("#endif\n")
     (ROOT / "src/d3d_trace.cpp").write_text("".join(out))
     print(f"{len(targets)} hooks, swap index {swap_index}", file=sys.stderr)
 

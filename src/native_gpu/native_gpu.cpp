@@ -10,6 +10,9 @@
 
 #include <rex/cvar.h>
 #include <rex/logging.h>
+#include <rex/runtime.h>
+
+#include "shader_registry.h"
 
 REXCVAR_DEFINE_BOOL(native_gpu, false, "Skate1",
                     "Render with the native D3D layer instead of the emulated Xenos GPU "
@@ -24,10 +27,11 @@ std::unique_ptr<plume::RenderInterface> g_interface;
 std::unique_ptr<plume::RenderDevice> g_device;
 }  // namespace
 
-void StartNativeGpu() {
+void StartNativeGpu(rex::Runtime* runtime) {
   if (!REXCVAR_GET(native_gpu)) {
     return;
   }
+  StartShaderRegistry(runtime->memory());
   g_interface = plume::CreateVulkanInterface();
   if (!g_interface) {
     REXLOG_ERROR("native_gpu: no Vulkan interface");

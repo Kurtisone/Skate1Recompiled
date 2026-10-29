@@ -19,7 +19,8 @@ def containers(blob):
             return
         flags, vsize, psize = struct.unpack_from(">III", blob, i)
         size = vsize + psize
-        if (flags & 0xFFFFFF00) == 0x102A1100 and 0 < size <= len(blob) - i:
+        if ((flags & 0xFFFFFF00) == 0x102A1100 and 0 < size <= len(blob) - i
+                and struct.unpack_from(">II", blob, i + 12) == (0, 0x24)):
             yield i, blob[i:i + size]
             i += size
         else:
