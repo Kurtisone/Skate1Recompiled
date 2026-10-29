@@ -339,7 +339,7 @@ int main(int argc, char** argv) {
   // Bindless heaps and pipeline layout as Unleashed sets them up: three
   // texture heaps (2D, 3D, cube), a sampler heap, 24 bytes of push constants
   // (vertex, pixel and shared constant buffer addresses).
-  constexpr uint32_t kTextureHeapSize = 4096;
+  constexpr uint32_t kTextureHeapSize = 8192;
   RenderDescriptorSetBuilder textureSetBuilder;
   textureSetBuilder.begin();
   textureSetBuilder.addTexture(0, kTextureHeapSize);
@@ -411,14 +411,137 @@ int main(int argc, char** argv) {
   copyWhite(white2D.get(), 0);
   copyWhite(white3D.get(), 0);
   for (uint32_t face = 0; face < 6; ++face) copyWhite(whiteCube.get(), face);
-  RenderTextureBarrier toRead[] = {
+
+  // Guest textures and samplers of the replayed draws, uploaded before the
+  // pass (base level only for now).
+  struct GuestTexture {
+    std::unique_ptr<RenderTexture> texture;
+    std::unique_ptr<RenderTextureView> view;
+    uint32_t dimension;  // 1 2D, 3 cube
+    uint32_t index;      // in its heap
+  };
+  std::unordered_map<uint64_t, GuestTexture> textures;
+  std::unordered_map<uint64_t, uint32_t> samplerIndices;
+  std::vector<std::unique_ptr<RenderSampler>> samplers;
+  std::map<std::string, uint32_t> textureSkips;
+  uint32_t next2D = 1, nextCube = 1;
+  auto textureKey = [](const xenos::TextureFetch& t) {
+    const uint32_t fields[] = {t.format, t.endian, t.tiled, t.pitch, t.address, t.dimension,
+                               t.width, t.height, t.depth, t.swizzle, t.is_signed};
+    return XXH3_64bits(fields, sizeof(fields));
+  };
+  auto samplerIndex = [&](const xenos::TextureFetch& t) {
+    RenderSamplerDesc desc;
+    auto address = [](uint32_t clamp) {
+      switch (clamp) {
+        case 0: return RenderTextureAddressMode::WRAP;
+        case 1: return RenderTextureAddressMode::MIRROR;
+        case 3: return RenderTextureAddressMode::MIRROR_ONCE;
+        case 6: case 7: return RenderTextureAddressMode::BORDER;
+        default: return RenderTextureAddressMode::CLAMP;
+      }
+    };
+    desc.addressU = address(t.clamp[0]);
+    desc.addressV = address(t.clamp[1]);
+    desc.addressW = address(t.clamp[2]);
+    desc.magFilter = t.mag_filter == 1 ? RenderFilter::LINEAR : RenderFilter::NEAREST;
+    desc.minFilter = t.min_filter == 1 ? RenderFilter::LINEAR : RenderFilter::NEAREST;
+    desc.mipmapMode = RenderMipmapMode::NEAREST;
+    desc.maxLOD = 0.0f;
+    const uint32_t fields[] = {uint32_t(desc.addressU), uint32_t(desc.addressV), uint32_t(desc.addressW),
+                               uint32_t(desc.magFilter), uint32_t(desc.minFilter)};
+    auto [it, inserted] = samplerIndices.try_emplace(XXH3_64bits(fields, sizeof(fields)), 0);
+    if (inserted) {
+      it->second = uint32_t(samplers.size() + 1);
+      samplers.push_back(device->createSampler(desc));
+      samplerSet->setSampler(it->second, samplers.back().get());
+    }
+    return it->second;
+  };
+  auto hostFormat = [](const xenos::TextureFetch& t) {
+    using namespace xenos;
+    const bool s = t.is_signed;
+    switch (t.format) {
+      case kTex_8: return s ? RenderFormat::R8_SNORM : RenderFormat::R8_UNORM;
+      case kTex_8_8: return s ? RenderFormat::R8G8_SNORM : RenderFormat::R8G8_UNORM;
+      case kTex_8_8_8_8: return s ? RenderFormat::R8G8B8A8_SNORM : RenderFormat::R8G8B8A8_UNORM;
+      case kTex_DXT1: return RenderFormat::BC1_UNORM;
+      case kTex_DXT2_3: return RenderFormat::BC2_UNORM;
+      case kTex_DXT4_5: return RenderFormat::BC3_UNORM;
+      case kTex_16_16: return s ? RenderFormat::R16G16_SNORM : RenderFormat::R16G16_UNORM;
+      case kTex_16_16_16_16: return s ? RenderFormat::R16G16B16A16_SNORM : RenderFormat::R16G16B16A16_UNORM;
+      case kTex_16_16_FLOAT: return RenderFormat::R16G16_FLOAT;
+      case kTex_16_16_16_16_FLOAT: return RenderFormat::R16G16B16A16_FLOAT;
+      case kTex_32_FLOAT: return RenderFormat::R32_FLOAT;
+      default: return RenderFormat::UNKNOWN;
+    }
+  };
+  std::vector<RenderTextureBarrier> uploadedTextures;
+  std::vector<uint8_t> untiled;
+  for (size_t index = first; index <= last && index < events.size(); ++index) {
+    const Event& e = events[index];
+    if (e.function != kDrawIndexed && e.function != kDraw) continue;
+    const xenos::DeviceState state{e.device.data()};
+    for (uint32_t slot = 0; slot < 16; ++slot) {
+      const xenos::TextureFetch t = xenos::DecodeTextureFetch(state, slot);
+      if (!t.valid) continue;
+      const uint64_t key = textureKey(t);
+      if (textures.count(key)) continue;
+      GuestTexture& guest = textures[key];
+      guest.dimension = t.dimension;
+      const RenderFormat format = hostFormat(t);
+      if ((t.dimension != 1 && t.dimension != 3) || format == RenderFormat::UNKNOWN) {
+        ++textureSkips["dimension " + std::to_string(t.dimension) + " format " + std::to_string(t.format)];
+        continue;
+      }
+      const bool cube = t.dimension == 3;
+      guest.texture = device->createTexture(RenderTextureDesc::Texture(
+          RenderTextureDimension::TEXTURE_2D, t.width, t.height, 1, 1, cube ? 6 : 1, format,
+          cube ? RenderTextureFlag::CUBE : RenderTextureFlag::NONE));
+      RenderTextureBarrier toCopy(guest.texture.get(), RenderTextureLayout::COPY_DEST);
+      commandList->barriers(RenderBarrierStage::COPY, nullptr, 0, &toCopy, 1);
+      const xenos::TextureBlock block = xenos::GetTextureBlock(t.format);
+      const uint32_t blocksX = (t.width + block.size - 1) / block.size;
+      const uint32_t blocksY = (t.height + block.size - 1) / block.size;
+      for (uint32_t slice = 0; slice < (cube ? 6u : 1u); ++slice) {
+        const uint64_t at = upload.Allocate(nullptr, uint64_t(blocksX) * blocksY * block.bytes, 512);
+        xenos::UntileTexture(physical, t, slice, upload.memory + at);
+        commandList->copyTextureRegion(
+            RenderTextureCopyLocation::Subresource(guest.texture.get(), 0, slice),
+            RenderTextureCopyLocation::PlacedFootprint(upload.buffer.get(), format, t.width, t.height, 1,
+                                                       blocksX * block.size, at));
+      }
+      RenderTextureViewDesc view;
+      view.format = format;
+      view.dimension = cube ? RenderTextureViewDimension::TEXTURE_CUBE : RenderTextureViewDimension::TEXTURE_2D;
+      view.mipLevels = 1;
+      RenderSwizzle components[4];
+      for (uint32_t c = 0; c < 4; ++c) {
+        const uint32_t select = (t.swizzle >> (3 * c)) & 7;
+        components[c] = select < 4 ? RenderSwizzle(uint32_t(RenderSwizzle::R) + select)
+                                   : select == 4 ? RenderSwizzle::ZERO : RenderSwizzle::ONE;
+      }
+      view.componentMapping = RenderComponentMapping(components[0], components[1], components[2], components[3]);
+      guest.view = guest.texture->createTextureView(view);
+      guest.index = cube ? nextCube++ : next2D++;
+      (cube ? textureCubeSet : texture2DSet)->setTexture(guest.index, guest.texture.get(),
+                                                         RenderTextureLayout::SHADER_READ, guest.view.get());
+      uploadedTextures.emplace_back(guest.texture.get(), RenderTextureLayout::SHADER_READ);
+    }
+  }
+  std::printf("%u 2D and %u cube textures uploaded\n", next2D - 1, nextCube - 1);
+  for (const auto& [reason, count] : textureSkips) std::printf("  texture skipped %u: %s\n", count, reason.c_str());
+
+  std::vector<RenderTextureBarrier> toRead = {
       {white2D.get(), RenderTextureLayout::SHADER_READ},
       {white3D.get(), RenderTextureLayout::SHADER_READ},
       {whiteCube.get(), RenderTextureLayout::SHADER_READ},
       {color.get(), RenderTextureLayout::COLOR_WRITE},
       {depth.get(), RenderTextureLayout::DEPTH_WRITE},
   };
-  commandList->barriers(RenderBarrierStage::GRAPHICS | RenderBarrierStage::COPY, nullptr, 0, toRead, 5);
+  toRead.insert(toRead.end(), uploadedTextures.begin(), uploadedTextures.end());
+  commandList->barriers(RenderBarrierStage::GRAPHICS | RenderBarrierStage::COPY, nullptr, 0, toRead.data(),
+                        uint32_t(toRead.size()));
   texture2DSet->setTexture(0, white2D.get(), RenderTextureLayout::SHADER_READ);
   texture3DSet->setTexture(0, white3D.get(), RenderTextureLayout::SHADER_READ);
   textureCubeSet->setTexture(0, whiteCube.get(), RenderTextureLayout::SHADER_READ, whiteCubeView.get());
@@ -670,6 +793,14 @@ int main(int argc, char** argv) {
     shared.booleans = (state.U32(xenos::device::kVertexBoolConstants) & 0xFF) |
                       ((state.U32(xenos::device::kPixelBoolConstants) & 0xFF) << 16);
     shared.alphaThreshold = state.RegF(xenos::reg::RB_ALPHA_REF);
+    for (uint32_t slot = 0; slot < 16; ++slot) {
+      const xenos::TextureFetch t = xenos::DecodeTextureFetch(state, slot);
+      if (!t.valid) continue;
+      auto it = textures.find(textureKey(t));
+      if (it == textures.end() || !it->second.texture) continue;
+      (it->second.dimension == 3 ? shared.textureCubeIndices : shared.texture2DIndices)[slot] = it->second.index;
+      shared.samplerIndices[slot] = samplerIndex(t);
+    }
     const uint64_t sharedConstants = upload.Allocate(&shared, sizeof(shared));
     const uint64_t pushConstants[] = {upload.address + vsConstants, upload.address + psConstants,
                                       upload.address + sharedConstants};
