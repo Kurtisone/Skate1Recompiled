@@ -73,1827 +73,1827 @@ const uint32_t kD3DTraceCount = 365;
 const uint32_t kD3DTraceSwapIndex = 313;
 
 REX_HOOK_RAW(sub_82C80058) {
-  D3DTraceEnter(0, ctx);
+  D3DTraceEnter(0, ctx, base);
   __imp__sub_82C80058(ctx, base);
   D3DTraceLeave(0);
 }
 REX_HOOK_RAW(sub_82C80460) {
-  D3DTraceEnter(1, ctx);
+  D3DTraceEnter(1, ctx, base);
   __imp__sub_82C80460(ctx, base);
   D3DTraceLeave(1);
 }
 REX_HOOK_RAW(sub_82C807E0) {
-  D3DTraceEnter(2, ctx);
+  D3DTraceEnter(2, ctx, base);
   __imp__sub_82C807E0(ctx, base);
   D3DTraceLeave(2);
 }
 REX_HOOK_RAW(sub_82C81788) {
-  D3DTraceEnter(3, ctx);
+  D3DTraceEnter(3, ctx, base);
   __imp__sub_82C81788(ctx, base);
   D3DTraceLeave(3);
 }
 REX_HOOK_RAW(sub_82C81958) {
-  D3DTraceEnter(4, ctx);
+  D3DTraceEnter(4, ctx, base);
   __imp__sub_82C81958(ctx, base);
   D3DTraceLeave(4);
 }
 REX_HOOK_RAW(sub_82C81A28) {
-  D3DTraceEnter(5, ctx);
+  D3DTraceEnter(5, ctx, base);
   __imp__sub_82C81A28(ctx, base);
   D3DTraceLeave(5);
 }
 REX_HOOK_RAW(sub_82C81B10) {
-  D3DTraceEnter(6, ctx);
+  D3DTraceEnter(6, ctx, base);
   __imp__sub_82C81B10(ctx, base);
   D3DTraceLeave(6);
 }
 REX_HOOK_RAW(sub_82C82448) {
-  D3DTraceEnter(7, ctx);
+  D3DTraceEnter(7, ctx, base);
   __imp__sub_82C82448(ctx, base);
   D3DTraceLeave(7);
 }
 REX_HOOK_RAW(sub_82C82538) {
-  D3DTraceEnter(8, ctx);
+  D3DTraceEnter(8, ctx, base);
   __imp__sub_82C82538(ctx, base);
   D3DTraceLeave(8);
 }
 REX_HOOK_RAW(sub_82C83738) {
-  D3DTraceEnter(9, ctx);
+  D3DTraceEnter(9, ctx, base);
   __imp__sub_82C83738(ctx, base);
   D3DTraceLeave(9);
 }
 REX_HOOK_RAW(sub_82C85A88) {
-  D3DTraceEnter(10, ctx);
+  D3DTraceEnter(10, ctx, base);
   __imp__sub_82C85A88(ctx, base);
   D3DTraceLeave(10);
 }
 REX_HOOK_RAW(sub_82C85D68) {
-  D3DTraceEnter(11, ctx);
+  D3DTraceEnter(11, ctx, base);
   __imp__sub_82C85D68(ctx, base);
   D3DTraceLeave(11);
 }
 REX_HOOK_RAW(sub_82C85E28) {
-  D3DTraceEnter(12, ctx);
+  D3DTraceEnter(12, ctx, base);
   __imp__sub_82C85E28(ctx, base);
   D3DTraceLeave(12);
 }
 REX_HOOK_RAW(sub_82C86670) {
-  D3DTraceEnter(13, ctx);
+  D3DTraceEnter(13, ctx, base);
   __imp__sub_82C86670(ctx, base);
   D3DTraceLeave(13);
 }
 REX_HOOK_RAW(sub_82C86900) {
-  D3DTraceEnter(14, ctx);
+  D3DTraceEnter(14, ctx, base);
   __imp__sub_82C86900(ctx, base);
   D3DTraceLeave(14);
 }
 REX_HOOK_RAW(sub_82C86A60) {
-  D3DTraceEnter(15, ctx);
+  D3DTraceEnter(15, ctx, base);
   __imp__sub_82C86A60(ctx, base);
   D3DTraceLeave(15);
 }
 REX_HOOK_RAW(sub_82C86B78) {
-  D3DTraceEnter(16, ctx);
+  D3DTraceEnter(16, ctx, base);
   __imp__sub_82C86B78(ctx, base);
   D3DTraceLeave(16);
 }
 REX_HOOK_RAW(sub_82C86BD8) {
-  D3DTraceEnter(17, ctx);
+  D3DTraceEnter(17, ctx, base);
   __imp__sub_82C86BD8(ctx, base);
   D3DTraceLeave(17);
 }
 REX_HOOK_RAW(sub_82C86D40) {
-  D3DTraceEnter(18, ctx);
+  D3DTraceEnter(18, ctx, base);
   __imp__sub_82C86D40(ctx, base);
   D3DTraceLeave(18);
 }
 REX_HOOK_RAW(sub_82C86DF0) {
-  D3DTraceEnter(19, ctx);
+  D3DTraceEnter(19, ctx, base);
   __imp__sub_82C86DF0(ctx, base);
   D3DTraceLeave(19);
 }
 REX_HOOK_RAW(sub_82C871B0) {
-  D3DTraceEnter(20, ctx);
+  D3DTraceEnter(20, ctx, base);
   __imp__sub_82C871B0(ctx, base);
   D3DTraceLeave(20);
 }
 REX_HOOK_RAW(sub_82C87290) {
-  D3DTraceEnter(21, ctx);
+  D3DTraceEnter(21, ctx, base);
   __imp__sub_82C87290(ctx, base);
   D3DTraceLeave(21);
 }
 REX_HOOK_RAW(sub_82C87350) {
-  D3DTraceEnter(22, ctx);
+  D3DTraceEnter(22, ctx, base);
   __imp__sub_82C87350(ctx, base);
   D3DTraceLeave(22);
 }
 REX_HOOK_RAW(sub_82C87588) {
-  D3DTraceEnter(23, ctx);
+  D3DTraceEnter(23, ctx, base);
   __imp__sub_82C87588(ctx, base);
   D3DTraceLeave(23);
 }
 REX_HOOK_RAW(sub_82C879C0) {
-  D3DTraceEnter(24, ctx);
+  D3DTraceEnter(24, ctx, base);
   __imp__sub_82C879C0(ctx, base);
   D3DTraceLeave(24);
 }
 REX_HOOK_RAW(sub_82C87B28) {
-  D3DTraceEnter(25, ctx);
+  D3DTraceEnter(25, ctx, base);
   __imp__sub_82C87B28(ctx, base);
   D3DTraceLeave(25);
 }
 REX_HOOK_RAW(sub_82C87BC0) {
-  D3DTraceEnter(26, ctx);
+  D3DTraceEnter(26, ctx, base);
   __imp__sub_82C87BC0(ctx, base);
   D3DTraceLeave(26);
 }
 REX_HOOK_RAW(sub_82C87D28) {
-  D3DTraceEnter(27, ctx);
+  D3DTraceEnter(27, ctx, base);
   __imp__sub_82C87D28(ctx, base);
   D3DTraceLeave(27);
 }
 REX_HOOK_RAW(sub_82C87E30) {
-  D3DTraceEnter(28, ctx);
+  D3DTraceEnter(28, ctx, base);
   __imp__sub_82C87E30(ctx, base);
   D3DTraceLeave(28);
 }
 REX_HOOK_RAW(sub_82C87EB8) {
-  D3DTraceEnter(29, ctx);
+  D3DTraceEnter(29, ctx, base);
   __imp__sub_82C87EB8(ctx, base);
   D3DTraceLeave(29);
 }
 REX_HOOK_RAW(sub_82C87F48) {
-  D3DTraceEnter(30, ctx);
+  D3DTraceEnter(30, ctx, base);
   __imp__sub_82C87F48(ctx, base);
   D3DTraceLeave(30);
 }
 REX_HOOK_RAW(sub_82C87FD8) {
-  D3DTraceEnter(31, ctx);
+  D3DTraceEnter(31, ctx, base);
   __imp__sub_82C87FD8(ctx, base);
   D3DTraceLeave(31);
 }
 REX_HOOK_RAW(sub_82C88148) {
-  D3DTraceEnter(32, ctx);
+  D3DTraceEnter(32, ctx, base);
   __imp__sub_82C88148(ctx, base);
   D3DTraceLeave(32);
 }
 REX_HOOK_RAW(sub_82C881F0) {
-  D3DTraceEnter(33, ctx);
+  D3DTraceEnter(33, ctx, base);
   __imp__sub_82C881F0(ctx, base);
   D3DTraceLeave(33);
 }
 REX_HOOK_RAW(sub_82C88298) {
-  D3DTraceEnter(34, ctx);
+  D3DTraceEnter(34, ctx, base);
   __imp__sub_82C88298(ctx, base);
   D3DTraceLeave(34);
 }
 REX_HOOK_RAW(sub_82C88478) {
-  D3DTraceEnter(35, ctx);
+  D3DTraceEnter(35, ctx, base);
   __imp__sub_82C88478(ctx, base);
   D3DTraceLeave(35);
 }
 REX_HOOK_RAW(sub_82C884D8) {
-  D3DTraceEnter(36, ctx);
+  D3DTraceEnter(36, ctx, base);
   __imp__sub_82C884D8(ctx, base);
   D3DTraceLeave(36);
 }
 REX_HOOK_RAW(sub_82C88770) {
-  D3DTraceEnter(37, ctx);
+  D3DTraceEnter(37, ctx, base);
   __imp__sub_82C88770(ctx, base);
   D3DTraceLeave(37);
 }
 REX_HOOK_RAW(sub_82C88858) {
-  D3DTraceEnter(38, ctx);
+  D3DTraceEnter(38, ctx, base);
   __imp__sub_82C88858(ctx, base);
   D3DTraceLeave(38);
 }
 REX_HOOK_RAW(sub_82C88B30) {
-  D3DTraceEnter(39, ctx);
+  D3DTraceEnter(39, ctx, base);
   __imp__sub_82C88B30(ctx, base);
   D3DTraceLeave(39);
 }
 REX_HOOK_RAW(sub_82C896B8) {
-  D3DTraceEnter(40, ctx);
+  D3DTraceEnter(40, ctx, base);
   __imp__sub_82C896B8(ctx, base);
   D3DTraceLeave(40);
 }
 REX_HOOK_RAW(sub_82C89778) {
-  D3DTraceEnter(41, ctx);
+  D3DTraceEnter(41, ctx, base);
   __imp__sub_82C89778(ctx, base);
   D3DTraceLeave(41);
 }
 REX_HOOK_RAW(sub_82C8B078) {
-  D3DTraceEnter(42, ctx);
+  D3DTraceEnter(42, ctx, base);
   __imp__sub_82C8B078(ctx, base);
   D3DTraceLeave(42);
 }
 REX_HOOK_RAW(sub_82C8B338) {
-  D3DTraceEnter(43, ctx);
+  D3DTraceEnter(43, ctx, base);
   __imp__sub_82C8B338(ctx, base);
   D3DTraceLeave(43);
 }
 REX_HOOK_RAW(sub_82C8B3C0) {
-  D3DTraceEnter(44, ctx);
+  D3DTraceEnter(44, ctx, base);
   __imp__sub_82C8B3C0(ctx, base);
   D3DTraceLeave(44);
 }
 REX_HOOK_RAW(sub_82C8B470) {
-  D3DTraceEnter(45, ctx);
+  D3DTraceEnter(45, ctx, base);
   __imp__sub_82C8B470(ctx, base);
   D3DTraceLeave(45);
 }
 REX_HOOK_RAW(sub_82C8B578) {
-  D3DTraceEnter(46, ctx);
+  D3DTraceEnter(46, ctx, base);
   __imp__sub_82C8B578(ctx, base);
   D3DTraceLeave(46);
 }
 REX_HOOK_RAW(sub_82C8BD40) {
-  D3DTraceEnter(47, ctx);
+  D3DTraceEnter(47, ctx, base);
   __imp__sub_82C8BD40(ctx, base);
   D3DTraceLeave(47);
 }
 REX_HOOK_RAW(sub_82C8BD48) {
-  D3DTraceEnter(48, ctx);
+  D3DTraceEnter(48, ctx, base);
   __imp__sub_82C8BD48(ctx, base);
   D3DTraceLeave(48);
 }
 REX_HOOK_RAW(sub_82C8BE38) {
-  D3DTraceEnter(49, ctx);
+  D3DTraceEnter(49, ctx, base);
   __imp__sub_82C8BE38(ctx, base);
   D3DTraceLeave(49);
 }
 REX_HOOK_RAW(sub_82C8BF50) {
-  D3DTraceEnter(50, ctx);
+  D3DTraceEnter(50, ctx, base);
   __imp__sub_82C8BF50(ctx, base);
   D3DTraceLeave(50);
 }
 REX_HOOK_RAW(sub_82C8BFC0) {
-  D3DTraceEnter(51, ctx);
+  D3DTraceEnter(51, ctx, base);
   __imp__sub_82C8BFC0(ctx, base);
   D3DTraceLeave(51);
 }
 REX_HOOK_RAW(sub_82C8C020) {
-  D3DTraceEnter(52, ctx);
+  D3DTraceEnter(52, ctx, base);
   __imp__sub_82C8C020(ctx, base);
   D3DTraceLeave(52);
 }
 REX_HOOK_RAW(sub_82C8C0C0) {
-  D3DTraceEnter(53, ctx);
+  D3DTraceEnter(53, ctx, base);
   __imp__sub_82C8C0C0(ctx, base);
   D3DTraceLeave(53);
 }
 REX_HOOK_RAW(sub_82C8C290) {
-  D3DTraceEnter(54, ctx);
+  D3DTraceEnter(54, ctx, base);
   __imp__sub_82C8C290(ctx, base);
   D3DTraceLeave(54);
 }
 REX_HOOK_RAW(sub_82C8C2A8) {
-  D3DTraceEnter(55, ctx);
+  D3DTraceEnter(55, ctx, base);
   __imp__sub_82C8C2A8(ctx, base);
   D3DTraceLeave(55);
 }
 REX_HOOK_RAW(sub_82C8C2D0) {
-  D3DTraceEnter(56, ctx);
+  D3DTraceEnter(56, ctx, base);
   __imp__sub_82C8C2D0(ctx, base);
   D3DTraceLeave(56);
 }
 REX_HOOK_RAW(sub_82C8C2E8) {
-  D3DTraceEnter(57, ctx);
+  D3DTraceEnter(57, ctx, base);
   __imp__sub_82C8C2E8(ctx, base);
   D3DTraceLeave(57);
 }
 REX_HOOK_RAW(sub_82C8C310) {
-  D3DTraceEnter(58, ctx);
+  D3DTraceEnter(58, ctx, base);
   __imp__sub_82C8C310(ctx, base);
   D3DTraceLeave(58);
 }
 REX_HOOK_RAW(sub_82C8C368) {
-  D3DTraceEnter(59, ctx);
+  D3DTraceEnter(59, ctx, base);
   __imp__sub_82C8C368(ctx, base);
   D3DTraceLeave(59);
 }
 REX_HOOK_RAW(sub_82C8C3C0) {
-  D3DTraceEnter(60, ctx);
+  D3DTraceEnter(60, ctx, base);
   __imp__sub_82C8C3C0(ctx, base);
   D3DTraceLeave(60);
 }
 REX_HOOK_RAW(sub_82C8CFD0) {
-  D3DTraceEnter(61, ctx);
+  D3DTraceEnter(61, ctx, base);
   __imp__sub_82C8CFD0(ctx, base);
   D3DTraceLeave(61);
 }
 REX_HOOK_RAW(sub_82C8D038) {
-  D3DTraceEnter(62, ctx);
+  D3DTraceEnter(62, ctx, base);
   __imp__sub_82C8D038(ctx, base);
   D3DTraceLeave(62);
 }
 REX_HOOK_RAW(sub_82C8D1D8) {
-  D3DTraceEnter(63, ctx);
+  D3DTraceEnter(63, ctx, base);
   __imp__sub_82C8D1D8(ctx, base);
   D3DTraceLeave(63);
 }
 REX_HOOK_RAW(sub_82C8D648) {
-  D3DTraceEnter(64, ctx);
+  D3DTraceEnter(64, ctx, base);
   __imp__sub_82C8D648(ctx, base);
   D3DTraceLeave(64);
 }
 REX_HOOK_RAW(sub_82C8D718) {
-  D3DTraceEnter(65, ctx);
+  D3DTraceEnter(65, ctx, base);
   __imp__sub_82C8D718(ctx, base);
   D3DTraceLeave(65);
 }
 REX_HOOK_RAW(sub_82C8DAA8) {
-  D3DTraceEnter(66, ctx);
+  D3DTraceEnter(66, ctx, base);
   __imp__sub_82C8DAA8(ctx, base);
   D3DTraceLeave(66);
 }
 REX_HOOK_RAW(sub_82C8E798) {
-  D3DTraceEnter(67, ctx);
+  D3DTraceEnter(67, ctx, base);
   __imp__sub_82C8E798(ctx, base);
   D3DTraceLeave(67);
 }
 REX_HOOK_RAW(sub_82C8E8A8) {
-  D3DTraceEnter(68, ctx);
+  D3DTraceEnter(68, ctx, base);
   __imp__sub_82C8E8A8(ctx, base);
   D3DTraceLeave(68);
 }
 REX_HOOK_RAW(sub_82C8E908) {
-  D3DTraceEnter(69, ctx);
+  D3DTraceEnter(69, ctx, base);
   __imp__sub_82C8E908(ctx, base);
   D3DTraceLeave(69);
 }
 REX_HOOK_RAW(sub_82C8EBF8) {
-  D3DTraceEnter(70, ctx);
+  D3DTraceEnter(70, ctx, base);
   __imp__sub_82C8EBF8(ctx, base);
   D3DTraceLeave(70);
 }
 REX_HOOK_RAW(sub_82C8ECD8) {
-  D3DTraceEnter(71, ctx);
+  D3DTraceEnter(71, ctx, base);
   __imp__sub_82C8ECD8(ctx, base);
   D3DTraceLeave(71);
 }
 REX_HOOK_RAW(sub_82C8EE48) {
-  D3DTraceEnter(72, ctx);
+  D3DTraceEnter(72, ctx, base);
   __imp__sub_82C8EE48(ctx, base);
   D3DTraceLeave(72);
 }
 REX_HOOK_RAW(sub_82C8F190) {
-  D3DTraceEnter(73, ctx);
+  D3DTraceEnter(73, ctx, base);
   __imp__sub_82C8F190(ctx, base);
   D3DTraceLeave(73);
 }
 REX_HOOK_RAW(sub_82C8F1E0) {
-  D3DTraceEnter(74, ctx);
+  D3DTraceEnter(74, ctx, base);
   __imp__sub_82C8F1E0(ctx, base);
   D3DTraceLeave(74);
 }
 REX_HOOK_RAW(sub_82C8F9B0) {
-  D3DTraceEnter(75, ctx);
+  D3DTraceEnter(75, ctx, base);
   __imp__sub_82C8F9B0(ctx, base);
   D3DTraceLeave(75);
 }
 REX_HOOK_RAW(sub_82C8FDC8) {
-  D3DTraceEnter(76, ctx);
+  D3DTraceEnter(76, ctx, base);
   __imp__sub_82C8FDC8(ctx, base);
   D3DTraceLeave(76);
 }
 REX_HOOK_RAW(sub_82C8FEE0) {
-  D3DTraceEnter(77, ctx);
+  D3DTraceEnter(77, ctx, base);
   __imp__sub_82C8FEE0(ctx, base);
   D3DTraceLeave(77);
 }
 REX_HOOK_RAW(sub_82C900B8) {
-  D3DTraceEnter(78, ctx);
+  D3DTraceEnter(78, ctx, base);
   __imp__sub_82C900B8(ctx, base);
   D3DTraceLeave(78);
 }
 REX_HOOK_RAW(sub_82C90140) {
-  D3DTraceEnter(79, ctx);
+  D3DTraceEnter(79, ctx, base);
   __imp__sub_82C90140(ctx, base);
   D3DTraceLeave(79);
 }
 REX_HOOK_RAW(sub_82C90370) {
-  D3DTraceEnter(80, ctx);
+  D3DTraceEnter(80, ctx, base);
   __imp__sub_82C90370(ctx, base);
   D3DTraceLeave(80);
 }
 REX_HOOK_RAW(sub_82C90380) {
-  D3DTraceEnter(81, ctx);
+  D3DTraceEnter(81, ctx, base);
   __imp__sub_82C90380(ctx, base);
   D3DTraceLeave(81);
 }
 REX_HOOK_RAW(sub_82C903B0) {
-  D3DTraceEnter(82, ctx);
+  D3DTraceEnter(82, ctx, base);
   __imp__sub_82C903B0(ctx, base);
   D3DTraceLeave(82);
 }
 REX_HOOK_RAW(sub_82C903D0) {
-  D3DTraceEnter(83, ctx);
+  D3DTraceEnter(83, ctx, base);
   __imp__sub_82C903D0(ctx, base);
   D3DTraceLeave(83);
 }
 REX_HOOK_RAW(sub_82C90478) {
-  D3DTraceEnter(84, ctx);
+  D3DTraceEnter(84, ctx, base);
   __imp__sub_82C90478(ctx, base);
   D3DTraceLeave(84);
 }
 REX_HOOK_RAW(sub_82C90528) {
-  D3DTraceEnter(85, ctx);
+  D3DTraceEnter(85, ctx, base);
   __imp__sub_82C90528(ctx, base);
   D3DTraceLeave(85);
 }
 REX_HOOK_RAW(sub_82C906E8) {
-  D3DTraceEnter(86, ctx);
+  D3DTraceEnter(86, ctx, base);
   __imp__sub_82C906E8(ctx, base);
   D3DTraceLeave(86);
 }
 REX_HOOK_RAW(sub_82C90718) {
-  D3DTraceEnter(87, ctx);
+  D3DTraceEnter(87, ctx, base);
   __imp__sub_82C90718(ctx, base);
   D3DTraceLeave(87);
 }
 REX_HOOK_RAW(sub_82C90738) {
-  D3DTraceEnter(88, ctx);
+  D3DTraceEnter(88, ctx, base);
   __imp__sub_82C90738(ctx, base);
   D3DTraceLeave(88);
 }
 REX_HOOK_RAW(sub_82C91ED8) {
-  D3DTraceEnter(89, ctx);
+  D3DTraceEnter(89, ctx, base);
   __imp__sub_82C91ED8(ctx, base);
   D3DTraceLeave(89);
 }
 REX_HOOK_RAW(sub_82C91F50) {
-  D3DTraceEnter(90, ctx);
+  D3DTraceEnter(90, ctx, base);
   __imp__sub_82C91F50(ctx, base);
   D3DTraceLeave(90);
 }
 REX_HOOK_RAW(sub_82C91F98) {
-  D3DTraceEnter(91, ctx);
+  D3DTraceEnter(91, ctx, base);
   __imp__sub_82C91F98(ctx, base);
   D3DTraceLeave(91);
 }
 REX_HOOK_RAW(sub_82C92018) {
-  D3DTraceEnter(92, ctx);
+  D3DTraceEnter(92, ctx, base);
   __imp__sub_82C92018(ctx, base);
   D3DTraceLeave(92);
 }
 REX_HOOK_RAW(sub_82C92078) {
-  D3DTraceEnter(93, ctx);
+  D3DTraceEnter(93, ctx, base);
   __imp__sub_82C92078(ctx, base);
   D3DTraceLeave(93);
 }
 REX_HOOK_RAW(sub_82C92228) {
-  D3DTraceEnter(94, ctx);
+  D3DTraceEnter(94, ctx, base);
   __imp__sub_82C92228(ctx, base);
   D3DTraceLeave(94);
 }
 REX_HOOK_RAW(sub_82C92B60) {
-  D3DTraceEnter(95, ctx);
+  D3DTraceEnter(95, ctx, base);
   __imp__sub_82C92B60(ctx, base);
   D3DTraceLeave(95);
 }
 REX_HOOK_RAW(sub_82C92FF8) {
-  D3DTraceEnter(96, ctx);
+  D3DTraceEnter(96, ctx, base);
   __imp__sub_82C92FF8(ctx, base);
   D3DTraceLeave(96);
 }
 REX_HOOK_RAW(sub_82C930D0) {
-  D3DTraceEnter(97, ctx);
+  D3DTraceEnter(97, ctx, base);
   __imp__sub_82C930D0(ctx, base);
   D3DTraceLeave(97);
 }
 REX_HOOK_RAW(sub_82C93200) {
-  D3DTraceEnter(98, ctx);
+  D3DTraceEnter(98, ctx, base);
   __imp__sub_82C93200(ctx, base);
   D3DTraceLeave(98);
 }
 REX_HOOK_RAW(sub_82C93310) {
-  D3DTraceEnter(99, ctx);
+  D3DTraceEnter(99, ctx, base);
   __imp__sub_82C93310(ctx, base);
   D3DTraceLeave(99);
 }
 REX_HOOK_RAW(sub_82C933B0) {
-  D3DTraceEnter(100, ctx);
+  D3DTraceEnter(100, ctx, base);
   __imp__sub_82C933B0(ctx, base);
   D3DTraceLeave(100);
 }
 REX_HOOK_RAW(sub_82C93518) {
-  D3DTraceEnter(101, ctx);
+  D3DTraceEnter(101, ctx, base);
   __imp__sub_82C93518(ctx, base);
   D3DTraceLeave(101);
 }
 REX_HOOK_RAW(sub_82C93DC8) {
-  D3DTraceEnter(102, ctx);
+  D3DTraceEnter(102, ctx, base);
   __imp__sub_82C93DC8(ctx, base);
   D3DTraceLeave(102);
 }
 REX_HOOK_RAW(sub_82C94080) {
-  D3DTraceEnter(103, ctx);
+  D3DTraceEnter(103, ctx, base);
   __imp__sub_82C94080(ctx, base);
   D3DTraceLeave(103);
 }
 REX_HOOK_RAW(sub_82C94120) {
-  D3DTraceEnter(104, ctx);
+  D3DTraceEnter(104, ctx, base);
   __imp__sub_82C94120(ctx, base);
   D3DTraceLeave(104);
 }
 REX_HOOK_RAW(sub_82C94188) {
-  D3DTraceEnter(105, ctx);
+  D3DTraceEnter(105, ctx, base);
   __imp__sub_82C94188(ctx, base);
   D3DTraceLeave(105);
 }
 REX_HOOK_RAW(sub_82C952E8) {
-  D3DTraceEnter(106, ctx);
+  D3DTraceEnter(106, ctx, base);
   __imp__sub_82C952E8(ctx, base);
   D3DTraceLeave(106);
 }
 REX_HOOK_RAW(sub_82C95328) {
-  D3DTraceEnter(107, ctx);
+  D3DTraceEnter(107, ctx, base);
   __imp__sub_82C95328(ctx, base);
   D3DTraceLeave(107);
 }
 REX_HOOK_RAW(sub_82C953F8) {
-  D3DTraceEnter(108, ctx);
+  D3DTraceEnter(108, ctx, base);
   __imp__sub_82C953F8(ctx, base);
   D3DTraceLeave(108);
 }
 REX_HOOK_RAW(sub_82C95CD8) {
-  D3DTraceEnter(109, ctx);
+  D3DTraceEnter(109, ctx, base);
   __imp__sub_82C95CD8(ctx, base);
   D3DTraceLeave(109);
 }
 REX_HOOK_RAW(sub_82C95E20) {
-  D3DTraceEnter(110, ctx);
+  D3DTraceEnter(110, ctx, base);
   __imp__sub_82C95E20(ctx, base);
   D3DTraceLeave(110);
 }
 REX_HOOK_RAW(sub_82C960E0) {
-  D3DTraceEnter(111, ctx);
+  D3DTraceEnter(111, ctx, base);
   __imp__sub_82C960E0(ctx, base);
   D3DTraceLeave(111);
 }
 REX_HOOK_RAW(sub_82C96D88) {
-  D3DTraceEnter(112, ctx);
+  D3DTraceEnter(112, ctx, base);
   __imp__sub_82C96D88(ctx, base);
   D3DTraceLeave(112);
 }
 REX_HOOK_RAW(sub_82C96DA8) {
-  D3DTraceEnter(113, ctx);
+  D3DTraceEnter(113, ctx, base);
   __imp__sub_82C96DA8(ctx, base);
   D3DTraceLeave(113);
 }
 REX_HOOK_RAW(sub_82C97518) {
-  D3DTraceEnter(114, ctx);
+  D3DTraceEnter(114, ctx, base);
   __imp__sub_82C97518(ctx, base);
   D3DTraceLeave(114);
 }
 REX_HOOK_RAW(sub_82C97848) {
-  D3DTraceEnter(115, ctx);
+  D3DTraceEnter(115, ctx, base);
   __imp__sub_82C97848(ctx, base);
   D3DTraceLeave(115);
 }
 REX_HOOK_RAW(sub_82C97B58) {
-  D3DTraceEnter(116, ctx);
+  D3DTraceEnter(116, ctx, base);
   __imp__sub_82C97B58(ctx, base);
   D3DTraceLeave(116);
 }
 REX_HOOK_RAW(sub_82C97D50) {
-  D3DTraceEnter(117, ctx);
+  D3DTraceEnter(117, ctx, base);
   __imp__sub_82C97D50(ctx, base);
   D3DTraceLeave(117);
 }
 REX_HOOK_RAW(sub_82C97ED0) {
-  D3DTraceEnter(118, ctx);
+  D3DTraceEnter(118, ctx, base);
   __imp__sub_82C97ED0(ctx, base);
   D3DTraceLeave(118);
 }
 REX_HOOK_RAW(sub_82C98950) {
-  D3DTraceEnter(119, ctx);
+  D3DTraceEnter(119, ctx, base);
   __imp__sub_82C98950(ctx, base);
   D3DTraceLeave(119);
 }
 REX_HOOK_RAW(sub_82CAA8A0) {
-  D3DTraceEnter(120, ctx);
+  D3DTraceEnter(120, ctx, base);
   __imp__sub_82CAA8A0(ctx, base);
   D3DTraceLeave(120);
 }
 REX_HOOK_RAW(sub_82CAAA48) {
-  D3DTraceEnter(121, ctx);
+  D3DTraceEnter(121, ctx, base);
   __imp__sub_82CAAA48(ctx, base);
   D3DTraceLeave(121);
 }
 REX_HOOK_RAW(sub_82CAB740) {
-  D3DTraceEnter(122, ctx);
+  D3DTraceEnter(122, ctx, base);
   __imp__sub_82CAB740(ctx, base);
   D3DTraceLeave(122);
 }
 REX_HOOK_RAW(sub_82CAB890) {
-  D3DTraceEnter(123, ctx);
+  D3DTraceEnter(123, ctx, base);
   __imp__sub_82CAB890(ctx, base);
   D3DTraceLeave(123);
 }
 REX_HOOK_RAW(sub_82CAB9F8) {
-  D3DTraceEnter(124, ctx);
+  D3DTraceEnter(124, ctx, base);
   __imp__sub_82CAB9F8(ctx, base);
   D3DTraceLeave(124);
 }
 REX_HOOK_RAW(sub_82CABB88) {
-  D3DTraceEnter(125, ctx);
+  D3DTraceEnter(125, ctx, base);
   __imp__sub_82CABB88(ctx, base);
   D3DTraceLeave(125);
 }
 REX_HOOK_RAW(sub_82CABD50) {
-  D3DTraceEnter(126, ctx);
+  D3DTraceEnter(126, ctx, base);
   __imp__sub_82CABD50(ctx, base);
   D3DTraceLeave(126);
 }
 REX_HOOK_RAW(sub_82CAC890) {
-  D3DTraceEnter(127, ctx);
+  D3DTraceEnter(127, ctx, base);
   __imp__sub_82CAC890(ctx, base);
   D3DTraceLeave(127);
 }
 REX_HOOK_RAW(sub_82CAD050) {
-  D3DTraceEnter(128, ctx);
+  D3DTraceEnter(128, ctx, base);
   __imp__sub_82CAD050(ctx, base);
   D3DTraceLeave(128);
 }
 REX_HOOK_RAW(sub_82CAE768) {
-  D3DTraceEnter(129, ctx);
+  D3DTraceEnter(129, ctx, base);
   __imp__sub_82CAE768(ctx, base);
   D3DTraceLeave(129);
 }
 REX_HOOK_RAW(sub_82CAE9C8) {
-  D3DTraceEnter(130, ctx);
+  D3DTraceEnter(130, ctx, base);
   __imp__sub_82CAE9C8(ctx, base);
   D3DTraceLeave(130);
 }
 REX_HOOK_RAW(sub_82CAF850) {
-  D3DTraceEnter(131, ctx);
+  D3DTraceEnter(131, ctx, base);
   __imp__sub_82CAF850(ctx, base);
   D3DTraceLeave(131);
 }
 REX_HOOK_RAW(sub_82CB1430) {
-  D3DTraceEnter(132, ctx);
+  D3DTraceEnter(132, ctx, base);
   __imp__sub_82CB1430(ctx, base);
   D3DTraceLeave(132);
 }
 REX_HOOK_RAW(sub_82CB1B60) {
-  D3DTraceEnter(133, ctx);
+  D3DTraceEnter(133, ctx, base);
   __imp__sub_82CB1B60(ctx, base);
   D3DTraceLeave(133);
 }
 REX_HOOK_RAW(sub_82CB1B98) {
-  D3DTraceEnter(134, ctx);
+  D3DTraceEnter(134, ctx, base);
   __imp__sub_82CB1B98(ctx, base);
   D3DTraceLeave(134);
 }
 REX_HOOK_RAW(sub_82CB1DD0) {
-  D3DTraceEnter(135, ctx);
+  D3DTraceEnter(135, ctx, base);
   __imp__sub_82CB1DD0(ctx, base);
   D3DTraceLeave(135);
 }
 REX_HOOK_RAW(sub_82CB1E48) {
-  D3DTraceEnter(136, ctx);
+  D3DTraceEnter(136, ctx, base);
   __imp__sub_82CB1E48(ctx, base);
   D3DTraceLeave(136);
 }
 REX_HOOK_RAW(sub_82CB29D8) {
-  D3DTraceEnter(137, ctx);
+  D3DTraceEnter(137, ctx, base);
   __imp__sub_82CB29D8(ctx, base);
   D3DTraceLeave(137);
 }
 REX_HOOK_RAW(sub_82CB2E78) {
-  D3DTraceEnter(138, ctx);
+  D3DTraceEnter(138, ctx, base);
   __imp__sub_82CB2E78(ctx, base);
   D3DTraceLeave(138);
 }
 REX_HOOK_RAW(sub_82CB2EF8) {
-  D3DTraceEnter(139, ctx);
+  D3DTraceEnter(139, ctx, base);
   __imp__sub_82CB2EF8(ctx, base);
   D3DTraceLeave(139);
 }
 REX_HOOK_RAW(sub_82CB3428) {
-  D3DTraceEnter(140, ctx);
+  D3DTraceEnter(140, ctx, base);
   __imp__sub_82CB3428(ctx, base);
   D3DTraceLeave(140);
 }
 REX_HOOK_RAW(sub_82CB3500) {
-  D3DTraceEnter(141, ctx);
+  D3DTraceEnter(141, ctx, base);
   __imp__sub_82CB3500(ctx, base);
   D3DTraceLeave(141);
 }
 REX_HOOK_RAW(sub_82CB38E8) {
-  D3DTraceEnter(142, ctx);
+  D3DTraceEnter(142, ctx, base);
   __imp__sub_82CB38E8(ctx, base);
   D3DTraceLeave(142);
 }
 REX_HOOK_RAW(sub_82CB4B78) {
-  D3DTraceEnter(143, ctx);
+  D3DTraceEnter(143, ctx, base);
   __imp__sub_82CB4B78(ctx, base);
   D3DTraceLeave(143);
 }
 REX_HOOK_RAW(sub_82CB4BD0) {
-  D3DTraceEnter(144, ctx);
+  D3DTraceEnter(144, ctx, base);
   __imp__sub_82CB4BD0(ctx, base);
   D3DTraceLeave(144);
 }
 REX_HOOK_RAW(sub_82CB4C40) {
-  D3DTraceEnter(145, ctx);
+  D3DTraceEnter(145, ctx, base);
   __imp__sub_82CB4C40(ctx, base);
   D3DTraceLeave(145);
 }
 REX_HOOK_RAW(sub_82CB4C80) {
-  D3DTraceEnter(146, ctx);
+  D3DTraceEnter(146, ctx, base);
   __imp__sub_82CB4C80(ctx, base);
   D3DTraceLeave(146);
 }
 REX_HOOK_RAW(sub_82CB4FC8) {
-  D3DTraceEnter(147, ctx);
+  D3DTraceEnter(147, ctx, base);
   __imp__sub_82CB4FC8(ctx, base);
   D3DTraceLeave(147);
 }
 REX_HOOK_RAW(sub_82CB5C50) {
-  D3DTraceEnter(148, ctx);
+  D3DTraceEnter(148, ctx, base);
   __imp__sub_82CB5C50(ctx, base);
   D3DTraceLeave(148);
 }
 REX_HOOK_RAW(sub_82CB5CC8) {
-  D3DTraceEnter(149, ctx);
+  D3DTraceEnter(149, ctx, base);
   __imp__sub_82CB5CC8(ctx, base);
   D3DTraceLeave(149);
 }
 REX_HOOK_RAW(sub_82CB5D48) {
-  D3DTraceEnter(150, ctx);
+  D3DTraceEnter(150, ctx, base);
   __imp__sub_82CB5D48(ctx, base);
   D3DTraceLeave(150);
 }
 REX_HOOK_RAW(sub_82CB5E60) {
-  D3DTraceEnter(151, ctx);
+  D3DTraceEnter(151, ctx, base);
   __imp__sub_82CB5E60(ctx, base);
   D3DTraceLeave(151);
 }
 REX_HOOK_RAW(sub_82CB5F60) {
-  D3DTraceEnter(152, ctx);
+  D3DTraceEnter(152, ctx, base);
   __imp__sub_82CB5F60(ctx, base);
   D3DTraceLeave(152);
 }
 REX_HOOK_RAW(sub_82CB6078) {
-  D3DTraceEnter(153, ctx);
+  D3DTraceEnter(153, ctx, base);
   __imp__sub_82CB6078(ctx, base);
   D3DTraceLeave(153);
 }
 REX_HOOK_RAW(sub_82CB60C0) {
-  D3DTraceEnter(154, ctx);
+  D3DTraceEnter(154, ctx, base);
   __imp__sub_82CB60C0(ctx, base);
   D3DTraceLeave(154);
 }
 REX_HOOK_RAW(sub_82CB60D0) {
-  D3DTraceEnter(155, ctx);
+  D3DTraceEnter(155, ctx, base);
   __imp__sub_82CB60D0(ctx, base);
   D3DTraceLeave(155);
 }
 REX_HOOK_RAW(sub_82CB6440) {
-  D3DTraceEnter(156, ctx);
+  D3DTraceEnter(156, ctx, base);
   __imp__sub_82CB6440(ctx, base);
   D3DTraceLeave(156);
 }
 REX_HOOK_RAW(sub_82CB6D40) {
-  D3DTraceEnter(157, ctx);
+  D3DTraceEnter(157, ctx, base);
   __imp__sub_82CB6D40(ctx, base);
   D3DTraceLeave(157);
 }
 REX_HOOK_RAW(sub_82CB6D70) {
-  D3DTraceEnter(158, ctx);
+  D3DTraceEnter(158, ctx, base);
   __imp__sub_82CB6D70(ctx, base);
   D3DTraceLeave(158);
 }
 REX_HOOK_RAW(sub_82CB6DA0) {
-  D3DTraceEnter(159, ctx);
+  D3DTraceEnter(159, ctx, base);
   __imp__sub_82CB6DA0(ctx, base);
   D3DTraceLeave(159);
 }
 REX_HOOK_RAW(sub_82CB7278) {
-  D3DTraceEnter(160, ctx);
+  D3DTraceEnter(160, ctx, base);
   __imp__sub_82CB7278(ctx, base);
   D3DTraceLeave(160);
 }
 REX_HOOK_RAW(sub_82CB72E0) {
-  D3DTraceEnter(161, ctx);
+  D3DTraceEnter(161, ctx, base);
   __imp__sub_82CB72E0(ctx, base);
   D3DTraceLeave(161);
 }
 REX_HOOK_RAW(sub_82CB7310) {
-  D3DTraceEnter(162, ctx);
+  D3DTraceEnter(162, ctx, base);
   __imp__sub_82CB7310(ctx, base);
   D3DTraceLeave(162);
 }
 REX_HOOK_RAW(sub_82CB7508) {
-  D3DTraceEnter(163, ctx);
+  D3DTraceEnter(163, ctx, base);
   __imp__sub_82CB7508(ctx, base);
   D3DTraceLeave(163);
 }
 REX_HOOK_RAW(sub_82CB7548) {
-  D3DTraceEnter(164, ctx);
+  D3DTraceEnter(164, ctx, base);
   __imp__sub_82CB7548(ctx, base);
   D3DTraceLeave(164);
 }
 REX_HOOK_RAW(sub_82CB7578) {
-  D3DTraceEnter(165, ctx);
+  D3DTraceEnter(165, ctx, base);
   __imp__sub_82CB7578(ctx, base);
   D3DTraceLeave(165);
 }
 REX_HOOK_RAW(sub_82CB75B0) {
-  D3DTraceEnter(166, ctx);
+  D3DTraceEnter(166, ctx, base);
   __imp__sub_82CB75B0(ctx, base);
   D3DTraceLeave(166);
 }
 REX_HOOK_RAW(sub_82CB75F0) {
-  D3DTraceEnter(167, ctx);
+  D3DTraceEnter(167, ctx, base);
   __imp__sub_82CB75F0(ctx, base);
   D3DTraceLeave(167);
 }
 REX_HOOK_RAW(sub_82CB7628) {
-  D3DTraceEnter(168, ctx);
+  D3DTraceEnter(168, ctx, base);
   __imp__sub_82CB7628(ctx, base);
   D3DTraceLeave(168);
 }
 REX_HOOK_RAW(sub_82CB7658) {
-  D3DTraceEnter(169, ctx);
+  D3DTraceEnter(169, ctx, base);
   __imp__sub_82CB7658(ctx, base);
   D3DTraceLeave(169);
 }
 REX_HOOK_RAW(sub_82CB7690) {
-  D3DTraceEnter(170, ctx);
+  D3DTraceEnter(170, ctx, base);
   __imp__sub_82CB7690(ctx, base);
   D3DTraceLeave(170);
 }
 REX_HOOK_RAW(sub_82CB76C8) {
-  D3DTraceEnter(171, ctx);
+  D3DTraceEnter(171, ctx, base);
   __imp__sub_82CB76C8(ctx, base);
   D3DTraceLeave(171);
 }
 REX_HOOK_RAW(sub_82CB76F8) {
-  D3DTraceEnter(172, ctx);
+  D3DTraceEnter(172, ctx, base);
   __imp__sub_82CB76F8(ctx, base);
   D3DTraceLeave(172);
 }
 REX_HOOK_RAW(sub_82CB7728) {
-  D3DTraceEnter(173, ctx);
+  D3DTraceEnter(173, ctx, base);
   __imp__sub_82CB7728(ctx, base);
   D3DTraceLeave(173);
 }
 REX_HOOK_RAW(sub_82CB7760) {
-  D3DTraceEnter(174, ctx);
+  D3DTraceEnter(174, ctx, base);
   __imp__sub_82CB7760(ctx, base);
   D3DTraceLeave(174);
 }
 REX_HOOK_RAW(sub_82CB7798) {
-  D3DTraceEnter(175, ctx);
+  D3DTraceEnter(175, ctx, base);
   __imp__sub_82CB7798(ctx, base);
   D3DTraceLeave(175);
 }
 REX_HOOK_RAW(sub_82CB77C8) {
-  D3DTraceEnter(176, ctx);
+  D3DTraceEnter(176, ctx, base);
   __imp__sub_82CB77C8(ctx, base);
   D3DTraceLeave(176);
 }
 REX_HOOK_RAW(sub_82CB77E8) {
-  D3DTraceEnter(177, ctx);
+  D3DTraceEnter(177, ctx, base);
   __imp__sub_82CB77E8(ctx, base);
   D3DTraceLeave(177);
 }
 REX_HOOK_RAW(sub_82CB7808) {
-  D3DTraceEnter(178, ctx);
+  D3DTraceEnter(178, ctx, base);
   __imp__sub_82CB7808(ctx, base);
   D3DTraceLeave(178);
 }
 REX_HOOK_RAW(sub_82CB7828) {
-  D3DTraceEnter(179, ctx);
+  D3DTraceEnter(179, ctx, base);
   __imp__sub_82CB7828(ctx, base);
   D3DTraceLeave(179);
 }
 REX_HOOK_RAW(sub_82CB7848) {
-  D3DTraceEnter(180, ctx);
+  D3DTraceEnter(180, ctx, base);
   __imp__sub_82CB7848(ctx, base);
   D3DTraceLeave(180);
 }
 REX_HOOK_RAW(sub_82CB7868) {
-  D3DTraceEnter(181, ctx);
+  D3DTraceEnter(181, ctx, base);
   __imp__sub_82CB7868(ctx, base);
   D3DTraceLeave(181);
 }
 REX_HOOK_RAW(sub_82CB78E0) {
-  D3DTraceEnter(182, ctx);
+  D3DTraceEnter(182, ctx, base);
   __imp__sub_82CB78E0(ctx, base);
   D3DTraceLeave(182);
 }
 REX_HOOK_RAW(sub_82CB79A8) {
-  D3DTraceEnter(183, ctx);
+  D3DTraceEnter(183, ctx, base);
   __imp__sub_82CB79A8(ctx, base);
   D3DTraceLeave(183);
 }
 REX_HOOK_RAW(sub_82CB7A50) {
-  D3DTraceEnter(184, ctx);
+  D3DTraceEnter(184, ctx, base);
   __imp__sub_82CB7A50(ctx, base);
   D3DTraceLeave(184);
 }
 REX_HOOK_RAW(sub_82CB7A80) {
-  D3DTraceEnter(185, ctx);
+  D3DTraceEnter(185, ctx, base);
   __imp__sub_82CB7A80(ctx, base);
   D3DTraceLeave(185);
 }
 REX_HOOK_RAW(sub_82CB7AA0) {
-  D3DTraceEnter(186, ctx);
+  D3DTraceEnter(186, ctx, base);
   __imp__sub_82CB7AA0(ctx, base);
   D3DTraceLeave(186);
 }
 REX_HOOK_RAW(sub_82CB7AE0) {
-  D3DTraceEnter(187, ctx);
+  D3DTraceEnter(187, ctx, base);
   __imp__sub_82CB7AE0(ctx, base);
   D3DTraceLeave(187);
 }
 REX_HOOK_RAW(sub_82CB7B20) {
-  D3DTraceEnter(188, ctx);
+  D3DTraceEnter(188, ctx, base);
   __imp__sub_82CB7B20(ctx, base);
   D3DTraceLeave(188);
 }
 REX_HOOK_RAW(sub_82CB7B60) {
-  D3DTraceEnter(189, ctx);
+  D3DTraceEnter(189, ctx, base);
   __imp__sub_82CB7B60(ctx, base);
   D3DTraceLeave(189);
 }
 REX_HOOK_RAW(sub_82CB80A0) {
-  D3DTraceEnter(190, ctx);
+  D3DTraceEnter(190, ctx, base);
   __imp__sub_82CB80A0(ctx, base);
   D3DTraceLeave(190);
 }
 REX_HOOK_RAW(sub_82CB81F0) {
-  D3DTraceEnter(191, ctx);
+  D3DTraceEnter(191, ctx, base);
   __imp__sub_82CB81F0(ctx, base);
   D3DTraceLeave(191);
 }
 REX_HOOK_RAW(sub_82CB82A0) {
-  D3DTraceEnter(192, ctx);
+  D3DTraceEnter(192, ctx, base);
   __imp__sub_82CB82A0(ctx, base);
   D3DTraceLeave(192);
 }
 REX_HOOK_RAW(sub_82CB8350) {
-  D3DTraceEnter(193, ctx);
+  D3DTraceEnter(193, ctx, base);
   __imp__sub_82CB8350(ctx, base);
   D3DTraceLeave(193);
 }
 REX_HOOK_RAW(sub_82CB8400) {
-  D3DTraceEnter(194, ctx);
+  D3DTraceEnter(194, ctx, base);
   __imp__sub_82CB8400(ctx, base);
   D3DTraceLeave(194);
 }
 REX_HOOK_RAW(sub_82CB8558) {
-  D3DTraceEnter(195, ctx);
+  D3DTraceEnter(195, ctx, base);
   __imp__sub_82CB8558(ctx, base);
   D3DTraceLeave(195);
 }
 REX_HOOK_RAW(sub_82CB8590) {
-  D3DTraceEnter(196, ctx);
+  D3DTraceEnter(196, ctx, base);
   __imp__sub_82CB8590(ctx, base);
   D3DTraceLeave(196);
 }
 REX_HOOK_RAW(sub_82CB85C0) {
-  D3DTraceEnter(197, ctx);
+  D3DTraceEnter(197, ctx, base);
   __imp__sub_82CB85C0(ctx, base);
   D3DTraceLeave(197);
 }
 REX_HOOK_RAW(sub_82CB85E8) {
-  D3DTraceEnter(198, ctx);
+  D3DTraceEnter(198, ctx, base);
   __imp__sub_82CB85E8(ctx, base);
   D3DTraceLeave(198);
 }
 REX_HOOK_RAW(sub_82CB8618) {
-  D3DTraceEnter(199, ctx);
+  D3DTraceEnter(199, ctx, base);
   __imp__sub_82CB8618(ctx, base);
   D3DTraceLeave(199);
 }
 REX_HOOK_RAW(sub_82CB87A0) {
-  D3DTraceEnter(200, ctx);
+  D3DTraceEnter(200, ctx, base);
   __imp__sub_82CB87A0(ctx, base);
   D3DTraceLeave(200);
 }
 REX_HOOK_RAW(sub_82CB87D0) {
-  D3DTraceEnter(201, ctx);
+  D3DTraceEnter(201, ctx, base);
   __imp__sub_82CB87D0(ctx, base);
   D3DTraceLeave(201);
 }
 REX_HOOK_RAW(sub_82CB8800) {
-  D3DTraceEnter(202, ctx);
+  D3DTraceEnter(202, ctx, base);
   __imp__sub_82CB8800(ctx, base);
   D3DTraceLeave(202);
 }
 REX_HOOK_RAW(sub_82CB8830) {
-  D3DTraceEnter(203, ctx);
+  D3DTraceEnter(203, ctx, base);
   __imp__sub_82CB8830(ctx, base);
   D3DTraceLeave(203);
 }
 REX_HOOK_RAW(sub_82CB8880) {
-  D3DTraceEnter(204, ctx);
+  D3DTraceEnter(204, ctx, base);
   __imp__sub_82CB8880(ctx, base);
   D3DTraceLeave(204);
 }
 REX_HOOK_RAW(sub_82CB8978) {
-  D3DTraceEnter(205, ctx);
+  D3DTraceEnter(205, ctx, base);
   __imp__sub_82CB8978(ctx, base);
   D3DTraceLeave(205);
 }
 REX_HOOK_RAW(sub_82CB8A10) {
-  D3DTraceEnter(206, ctx);
+  D3DTraceEnter(206, ctx, base);
   __imp__sub_82CB8A10(ctx, base);
   D3DTraceLeave(206);
 }
 REX_HOOK_RAW(sub_82CB8B08) {
-  D3DTraceEnter(207, ctx);
+  D3DTraceEnter(207, ctx, base);
   __imp__sub_82CB8B08(ctx, base);
   D3DTraceLeave(207);
 }
 REX_HOOK_RAW(sub_82CB8BA0) {
-  D3DTraceEnter(208, ctx);
+  D3DTraceEnter(208, ctx, base);
   __imp__sub_82CB8BA0(ctx, base);
   D3DTraceLeave(208);
 }
 REX_HOOK_RAW(sub_82CB8BF8) {
-  D3DTraceEnter(209, ctx);
+  D3DTraceEnter(209, ctx, base);
   __imp__sub_82CB8BF8(ctx, base);
   D3DTraceLeave(209);
 }
 REX_HOOK_RAW(sub_82CB8C90) {
-  D3DTraceEnter(210, ctx);
+  D3DTraceEnter(210, ctx, base);
   __imp__sub_82CB8C90(ctx, base);
   D3DTraceLeave(210);
 }
 REX_HOOK_RAW(sub_82CB8D08) {
-  D3DTraceEnter(211, ctx);
+  D3DTraceEnter(211, ctx, base);
   __imp__sub_82CB8D08(ctx, base);
   D3DTraceLeave(211);
 }
 REX_HOOK_RAW(sub_82CB8DB0) {
-  D3DTraceEnter(212, ctx);
+  D3DTraceEnter(212, ctx, base);
   __imp__sub_82CB8DB0(ctx, base);
   D3DTraceLeave(212);
 }
 REX_HOOK_RAW(sub_82CB8E50) {
-  D3DTraceEnter(213, ctx);
+  D3DTraceEnter(213, ctx, base);
   __imp__sub_82CB8E50(ctx, base);
   D3DTraceLeave(213);
 }
 REX_HOOK_RAW(sub_82CB8ED0) {
-  D3DTraceEnter(214, ctx);
+  D3DTraceEnter(214, ctx, base);
   __imp__sub_82CB8ED0(ctx, base);
   D3DTraceLeave(214);
 }
 REX_HOOK_RAW(sub_82CB8F50) {
-  D3DTraceEnter(215, ctx);
+  D3DTraceEnter(215, ctx, base);
   __imp__sub_82CB8F50(ctx, base);
   D3DTraceLeave(215);
 }
 REX_HOOK_RAW(sub_82CB8FC0) {
-  D3DTraceEnter(216, ctx);
+  D3DTraceEnter(216, ctx, base);
   __imp__sub_82CB8FC0(ctx, base);
   D3DTraceLeave(216);
 }
 REX_HOOK_RAW(sub_82CB9010) {
-  D3DTraceEnter(217, ctx);
+  D3DTraceEnter(217, ctx, base);
   __imp__sub_82CB9010(ctx, base);
   D3DTraceLeave(217);
 }
 REX_HOOK_RAW(sub_82CB9060) {
-  D3DTraceEnter(218, ctx);
+  D3DTraceEnter(218, ctx, base);
   __imp__sub_82CB9060(ctx, base);
   D3DTraceLeave(218);
 }
 REX_HOOK_RAW(sub_82CB9270) {
-  D3DTraceEnter(219, ctx);
+  D3DTraceEnter(219, ctx, base);
   __imp__sub_82CB9270(ctx, base);
   D3DTraceLeave(219);
 }
 REX_HOOK_RAW(sub_82CB9400) {
-  D3DTraceEnter(220, ctx);
+  D3DTraceEnter(220, ctx, base);
   __imp__sub_82CB9400(ctx, base);
   D3DTraceLeave(220);
 }
 REX_HOOK_RAW(sub_82CB9520) {
-  D3DTraceEnter(221, ctx);
+  D3DTraceEnter(221, ctx, base);
   __imp__sub_82CB9520(ctx, base);
   D3DTraceLeave(221);
 }
 REX_HOOK_RAW(sub_82CB95A8) {
-  D3DTraceEnter(222, ctx);
+  D3DTraceEnter(222, ctx, base);
   __imp__sub_82CB95A8(ctx, base);
   D3DTraceLeave(222);
 }
 REX_HOOK_RAW(sub_82CB9678) {
-  D3DTraceEnter(223, ctx);
+  D3DTraceEnter(223, ctx, base);
   __imp__sub_82CB9678(ctx, base);
   D3DTraceLeave(223);
 }
 REX_HOOK_RAW(sub_82CB9780) {
-  D3DTraceEnter(224, ctx);
+  D3DTraceEnter(224, ctx, base);
   __imp__sub_82CB9780(ctx, base);
   D3DTraceLeave(224);
 }
 REX_HOOK_RAW(sub_82CB99C0) {
-  D3DTraceEnter(225, ctx);
+  D3DTraceEnter(225, ctx, base);
   __imp__sub_82CB99C0(ctx, base);
   D3DTraceLeave(225);
 }
 REX_HOOK_RAW(sub_82CB9F28) {
-  D3DTraceEnter(226, ctx);
+  D3DTraceEnter(226, ctx, base);
   __imp__sub_82CB9F28(ctx, base);
   D3DTraceLeave(226);
 }
 REX_HOOK_RAW(sub_82CB9FB8) {
-  D3DTraceEnter(227, ctx);
+  D3DTraceEnter(227, ctx, base);
   __imp__sub_82CB9FB8(ctx, base);
   D3DTraceLeave(227);
 }
 REX_HOOK_RAW(sub_82CBA070) {
-  D3DTraceEnter(228, ctx);
+  D3DTraceEnter(228, ctx, base);
   __imp__sub_82CBA070(ctx, base);
   D3DTraceLeave(228);
 }
 REX_HOOK_RAW(sub_82CBA3D8) {
-  D3DTraceEnter(229, ctx);
+  D3DTraceEnter(229, ctx, base);
   __imp__sub_82CBA3D8(ctx, base);
   D3DTraceLeave(229);
 }
 REX_HOOK_RAW(sub_82CBA6B0) {
-  D3DTraceEnter(230, ctx);
+  D3DTraceEnter(230, ctx, base);
   __imp__sub_82CBA6B0(ctx, base);
   D3DTraceLeave(230);
 }
 REX_HOOK_RAW(sub_82CBC488) {
-  D3DTraceEnter(231, ctx);
+  D3DTraceEnter(231, ctx, base);
   __imp__sub_82CBC488(ctx, base);
   D3DTraceLeave(231);
 }
 REX_HOOK_RAW(sub_82CBC4A8) {
-  D3DTraceEnter(232, ctx);
+  D3DTraceEnter(232, ctx, base);
   __imp__sub_82CBC4A8(ctx, base);
   D3DTraceLeave(232);
 }
 REX_HOOK_RAW(sub_82CBC4C0) {
-  D3DTraceEnter(233, ctx);
+  D3DTraceEnter(233, ctx, base);
   __imp__sub_82CBC4C0(ctx, base);
   D3DTraceLeave(233);
 }
 REX_HOOK_RAW(sub_82CBCA78) {
-  D3DTraceEnter(234, ctx);
+  D3DTraceEnter(234, ctx, base);
   __imp__sub_82CBCA78(ctx, base);
   D3DTraceLeave(234);
 }
 REX_HOOK_RAW(sub_82CBDA80) {
-  D3DTraceEnter(235, ctx);
+  D3DTraceEnter(235, ctx, base);
   __imp__sub_82CBDA80(ctx, base);
   D3DTraceLeave(235);
 }
 REX_HOOK_RAW(sub_82CBDB68) {
-  D3DTraceEnter(236, ctx);
+  D3DTraceEnter(236, ctx, base);
   __imp__sub_82CBDB68(ctx, base);
   D3DTraceLeave(236);
 }
 REX_HOOK_RAW(sub_82CBDC90) {
-  D3DTraceEnter(237, ctx);
+  D3DTraceEnter(237, ctx, base);
   __imp__sub_82CBDC90(ctx, base);
   D3DTraceLeave(237);
 }
 REX_HOOK_RAW(sub_82CBDCF0) {
-  D3DTraceEnter(238, ctx);
+  D3DTraceEnter(238, ctx, base);
   __imp__sub_82CBDCF0(ctx, base);
   D3DTraceLeave(238);
 }
 REX_HOOK_RAW(sub_82CBDDE0) {
-  D3DTraceEnter(239, ctx);
+  D3DTraceEnter(239, ctx, base);
   __imp__sub_82CBDDE0(ctx, base);
   D3DTraceLeave(239);
 }
 REX_HOOK_RAW(sub_82CBDE38) {
-  D3DTraceEnter(240, ctx);
+  D3DTraceEnter(240, ctx, base);
   __imp__sub_82CBDE38(ctx, base);
   D3DTraceLeave(240);
 }
 REX_HOOK_RAW(sub_82CBDF20) {
-  D3DTraceEnter(241, ctx);
+  D3DTraceEnter(241, ctx, base);
   __imp__sub_82CBDF20(ctx, base);
   D3DTraceLeave(241);
 }
 REX_HOOK_RAW(sub_82CBDFB0) {
-  D3DTraceEnter(242, ctx);
+  D3DTraceEnter(242, ctx, base);
   __imp__sub_82CBDFB0(ctx, base);
   D3DTraceLeave(242);
 }
 REX_HOOK_RAW(sub_82CBDFE8) {
-  D3DTraceEnter(243, ctx);
+  D3DTraceEnter(243, ctx, base);
   __imp__sub_82CBDFE8(ctx, base);
   D3DTraceLeave(243);
 }
 REX_HOOK_RAW(sub_82CBE1F0) {
-  D3DTraceEnter(244, ctx);
+  D3DTraceEnter(244, ctx, base);
   __imp__sub_82CBE1F0(ctx, base);
   D3DTraceLeave(244);
 }
 REX_HOOK_RAW(sub_82CBE2E8) {
-  D3DTraceEnter(245, ctx);
+  D3DTraceEnter(245, ctx, base);
   __imp__sub_82CBE2E8(ctx, base);
   D3DTraceLeave(245);
 }
 REX_HOOK_RAW(sub_82CBE508) {
-  D3DTraceEnter(246, ctx);
+  D3DTraceEnter(246, ctx, base);
   __imp__sub_82CBE508(ctx, base);
   D3DTraceLeave(246);
 }
 REX_HOOK_RAW(sub_82CBE650) {
-  D3DTraceEnter(247, ctx);
+  D3DTraceEnter(247, ctx, base);
   __imp__sub_82CBE650(ctx, base);
   D3DTraceLeave(247);
 }
 REX_HOOK_RAW(sub_82CBEA60) {
-  D3DTraceEnter(248, ctx);
+  D3DTraceEnter(248, ctx, base);
   __imp__sub_82CBEA60(ctx, base);
   D3DTraceLeave(248);
 }
 REX_HOOK_RAW(sub_82CBEB88) {
-  D3DTraceEnter(249, ctx);
+  D3DTraceEnter(249, ctx, base);
   __imp__sub_82CBEB88(ctx, base);
   D3DTraceLeave(249);
 }
 REX_HOOK_RAW(sub_82CBEB90) {
-  D3DTraceEnter(250, ctx);
+  D3DTraceEnter(250, ctx, base);
   __imp__sub_82CBEB90(ctx, base);
   D3DTraceLeave(250);
 }
 REX_HOOK_RAW(sub_82CBFCA8) {
-  D3DTraceEnter(251, ctx);
+  D3DTraceEnter(251, ctx, base);
   __imp__sub_82CBFCA8(ctx, base);
   D3DTraceLeave(251);
 }
 REX_HOOK_RAW(sub_82CBFCD8) {
-  D3DTraceEnter(252, ctx);
+  D3DTraceEnter(252, ctx, base);
   __imp__sub_82CBFCD8(ctx, base);
   D3DTraceLeave(252);
 }
 REX_HOOK_RAW(sub_82CBFCF0) {
-  D3DTraceEnter(253, ctx);
+  D3DTraceEnter(253, ctx, base);
   __imp__sub_82CBFCF0(ctx, base);
   D3DTraceLeave(253);
 }
 REX_HOOK_RAW(sub_82CBFD08) {
-  D3DTraceEnter(254, ctx);
+  D3DTraceEnter(254, ctx, base);
   __imp__sub_82CBFD08(ctx, base);
   D3DTraceLeave(254);
 }
 REX_HOOK_RAW(sub_82CBFD38) {
-  D3DTraceEnter(255, ctx);
+  D3DTraceEnter(255, ctx, base);
   __imp__sub_82CBFD38(ctx, base);
   D3DTraceLeave(255);
 }
 REX_HOOK_RAW(sub_82CBFD50) {
-  D3DTraceEnter(256, ctx);
+  D3DTraceEnter(256, ctx, base);
   __imp__sub_82CBFD50(ctx, base);
   D3DTraceLeave(256);
 }
 REX_HOOK_RAW(sub_82CBFD68) {
-  D3DTraceEnter(257, ctx);
+  D3DTraceEnter(257, ctx, base);
   __imp__sub_82CBFD68(ctx, base);
   D3DTraceLeave(257);
 }
 REX_HOOK_RAW(sub_82CBFD98) {
-  D3DTraceEnter(258, ctx);
+  D3DTraceEnter(258, ctx, base);
   __imp__sub_82CBFD98(ctx, base);
   D3DTraceLeave(258);
 }
 REX_HOOK_RAW(sub_82CBFDB0) {
-  D3DTraceEnter(259, ctx);
+  D3DTraceEnter(259, ctx, base);
   __imp__sub_82CBFDB0(ctx, base);
   D3DTraceLeave(259);
 }
 REX_HOOK_RAW(sub_82CBFEC0) {
-  D3DTraceEnter(260, ctx);
+  D3DTraceEnter(260, ctx, base);
   __imp__sub_82CBFEC0(ctx, base);
   D3DTraceLeave(260);
 }
 REX_HOOK_RAW(sub_82CC05E8) {
-  D3DTraceEnter(261, ctx);
+  D3DTraceEnter(261, ctx, base);
   __imp__sub_82CC05E8(ctx, base);
   D3DTraceLeave(261);
 }
 REX_HOOK_RAW(sub_82CC0E58) {
-  D3DTraceEnter(262, ctx);
+  D3DTraceEnter(262, ctx, base);
   __imp__sub_82CC0E58(ctx, base);
   D3DTraceLeave(262);
 }
 REX_HOOK_RAW(sub_82CC0EB0) {
-  D3DTraceEnter(263, ctx);
+  D3DTraceEnter(263, ctx, base);
   __imp__sub_82CC0EB0(ctx, base);
   D3DTraceLeave(263);
 }
 REX_HOOK_RAW(sub_82CC1038) {
-  D3DTraceEnter(264, ctx);
+  D3DTraceEnter(264, ctx, base);
   __imp__sub_82CC1038(ctx, base);
   D3DTraceLeave(264);
 }
 REX_HOOK_RAW(sub_82CC2338) {
-  D3DTraceEnter(265, ctx);
+  D3DTraceEnter(265, ctx, base);
   __imp__sub_82CC2338(ctx, base);
   D3DTraceLeave(265);
 }
 REX_HOOK_RAW(sub_82CC30F8) {
-  D3DTraceEnter(266, ctx);
+  D3DTraceEnter(266, ctx, base);
   __imp__sub_82CC30F8(ctx, base);
   D3DTraceLeave(266);
 }
 REX_HOOK_RAW(sub_82CC3F78) {
-  D3DTraceEnter(267, ctx);
+  D3DTraceEnter(267, ctx, base);
   __imp__sub_82CC3F78(ctx, base);
   D3DTraceLeave(267);
 }
 REX_HOOK_RAW(sub_82CC3F90) {
-  D3DTraceEnter(268, ctx);
+  D3DTraceEnter(268, ctx, base);
   __imp__sub_82CC3F90(ctx, base);
   D3DTraceLeave(268);
 }
 REX_HOOK_RAW(sub_82CC3FA8) {
-  D3DTraceEnter(269, ctx);
+  D3DTraceEnter(269, ctx, base);
   __imp__sub_82CC3FA8(ctx, base);
   D3DTraceLeave(269);
 }
 REX_HOOK_RAW(sub_82CC4470) {
-  D3DTraceEnter(270, ctx);
+  D3DTraceEnter(270, ctx, base);
   __imp__sub_82CC4470(ctx, base);
   D3DTraceLeave(270);
 }
 REX_HOOK_RAW(sub_82CC4890) {
-  D3DTraceEnter(271, ctx);
+  D3DTraceEnter(271, ctx, base);
   __imp__sub_82CC4890(ctx, base);
   D3DTraceLeave(271);
 }
 REX_HOOK_RAW(sub_82CC4898) {
-  D3DTraceEnter(272, ctx);
+  D3DTraceEnter(272, ctx, base);
   __imp__sub_82CC4898(ctx, base);
   D3DTraceLeave(272);
 }
 REX_HOOK_RAW(sub_82CC48A0) {
-  D3DTraceEnter(273, ctx);
+  D3DTraceEnter(273, ctx, base);
   __imp__sub_82CC48A0(ctx, base);
   D3DTraceLeave(273);
 }
 REX_HOOK_RAW(sub_82CC48A8) {
-  D3DTraceEnter(274, ctx);
+  D3DTraceEnter(274, ctx, base);
   __imp__sub_82CC48A8(ctx, base);
   D3DTraceLeave(274);
 }
 REX_HOOK_RAW(sub_82CC48C0) {
-  D3DTraceEnter(275, ctx);
+  D3DTraceEnter(275, ctx, base);
   __imp__sub_82CC48C0(ctx, base);
   D3DTraceLeave(275);
 }
 REX_HOOK_RAW(sub_82CC48D8) {
-  D3DTraceEnter(276, ctx);
+  D3DTraceEnter(276, ctx, base);
   __imp__sub_82CC48D8(ctx, base);
   D3DTraceLeave(276);
 }
 REX_HOOK_RAW(sub_82CC48F0) {
-  D3DTraceEnter(277, ctx);
+  D3DTraceEnter(277, ctx, base);
   __imp__sub_82CC48F0(ctx, base);
   D3DTraceLeave(277);
 }
 REX_HOOK_RAW(sub_82CC4908) {
-  D3DTraceEnter(278, ctx);
+  D3DTraceEnter(278, ctx, base);
   __imp__sub_82CC4908(ctx, base);
   D3DTraceLeave(278);
 }
 REX_HOOK_RAW(sub_82CC4910) {
-  D3DTraceEnter(279, ctx);
+  D3DTraceEnter(279, ctx, base);
   __imp__sub_82CC4910(ctx, base);
   D3DTraceLeave(279);
 }
 REX_HOOK_RAW(sub_82CC4918) {
-  D3DTraceEnter(280, ctx);
+  D3DTraceEnter(280, ctx, base);
   __imp__sub_82CC4918(ctx, base);
   D3DTraceLeave(280);
 }
 REX_HOOK_RAW(sub_82CC4BA8) {
-  D3DTraceEnter(281, ctx);
+  D3DTraceEnter(281, ctx, base);
   __imp__sub_82CC4BA8(ctx, base);
   D3DTraceLeave(281);
 }
 REX_HOOK_RAW(sub_82CC4BC0) {
-  D3DTraceEnter(282, ctx);
+  D3DTraceEnter(282, ctx, base);
   __imp__sub_82CC4BC0(ctx, base);
   D3DTraceLeave(282);
 }
 REX_HOOK_RAW(sub_82CC4C20) {
-  D3DTraceEnter(283, ctx);
+  D3DTraceEnter(283, ctx, base);
   __imp__sub_82CC4C20(ctx, base);
   D3DTraceLeave(283);
 }
 REX_HOOK_RAW(sub_82CC4E78) {
-  D3DTraceEnter(284, ctx);
+  D3DTraceEnter(284, ctx, base);
   __imp__sub_82CC4E78(ctx, base);
   D3DTraceLeave(284);
 }
 REX_HOOK_RAW(sub_82CC4FF0) {
-  D3DTraceEnter(285, ctx);
+  D3DTraceEnter(285, ctx, base);
   __imp__sub_82CC4FF0(ctx, base);
   D3DTraceLeave(285);
 }
 REX_HOOK_RAW(sub_82CC5578) {
-  D3DTraceEnter(286, ctx);
+  D3DTraceEnter(286, ctx, base);
   __imp__sub_82CC5578(ctx, base);
   D3DTraceLeave(286);
 }
 REX_HOOK_RAW(sub_82CC7510) {
-  D3DTraceEnter(287, ctx);
+  D3DTraceEnter(287, ctx, base);
   __imp__sub_82CC7510(ctx, base);
   D3DTraceLeave(287);
 }
 REX_HOOK_RAW(sub_82CC7638) {
-  D3DTraceEnter(288, ctx);
+  D3DTraceEnter(288, ctx, base);
   __imp__sub_82CC7638(ctx, base);
   D3DTraceLeave(288);
 }
 REX_HOOK_RAW(sub_82CC7960) {
-  D3DTraceEnter(289, ctx);
+  D3DTraceEnter(289, ctx, base);
   __imp__sub_82CC7960(ctx, base);
   D3DTraceLeave(289);
 }
 REX_HOOK_RAW(sub_82CC7FF0) {
-  D3DTraceEnter(290, ctx);
+  D3DTraceEnter(290, ctx, base);
   __imp__sub_82CC7FF0(ctx, base);
   D3DTraceLeave(290);
 }
 REX_HOOK_RAW(sub_82CC8FA0) {
-  D3DTraceEnter(291, ctx);
+  D3DTraceEnter(291, ctx, base);
   __imp__sub_82CC8FA0(ctx, base);
   D3DTraceLeave(291);
 }
 REX_HOOK_RAW(sub_82CC8FB8) {
-  D3DTraceEnter(292, ctx);
+  D3DTraceEnter(292, ctx, base);
   __imp__sub_82CC8FB8(ctx, base);
   D3DTraceLeave(292);
 }
 REX_HOOK_RAW(sub_82CC8FE0) {
-  D3DTraceEnter(293, ctx);
+  D3DTraceEnter(293, ctx, base);
   __imp__sub_82CC8FE0(ctx, base);
   D3DTraceLeave(293);
 }
 REX_HOOK_RAW(sub_82CC9010) {
-  D3DTraceEnter(294, ctx);
+  D3DTraceEnter(294, ctx, base);
   __imp__sub_82CC9010(ctx, base);
   D3DTraceLeave(294);
 }
 REX_HOOK_RAW(sub_82CC9028) {
-  D3DTraceEnter(295, ctx);
+  D3DTraceEnter(295, ctx, base);
   __imp__sub_82CC9028(ctx, base);
   D3DTraceLeave(295);
 }
 REX_HOOK_RAW(sub_82CC9040) {
-  D3DTraceEnter(296, ctx);
+  D3DTraceEnter(296, ctx, base);
   __imp__sub_82CC9040(ctx, base);
   D3DTraceLeave(296);
 }
 REX_HOOK_RAW(sub_82CC9098) {
-  D3DTraceEnter(297, ctx);
+  D3DTraceEnter(297, ctx, base);
   __imp__sub_82CC9098(ctx, base);
   D3DTraceLeave(297);
 }
 REX_HOOK_RAW(sub_82CC9110) {
-  D3DTraceEnter(298, ctx);
+  D3DTraceEnter(298, ctx, base);
   __imp__sub_82CC9110(ctx, base);
   D3DTraceLeave(298);
 }
 REX_HOOK_RAW(sub_82CCAD70) {
-  D3DTraceEnter(299, ctx);
+  D3DTraceEnter(299, ctx, base);
   __imp__sub_82CCAD70(ctx, base);
   D3DTraceLeave(299);
 }
 REX_HOOK_RAW(sub_82CCAE28) {
-  D3DTraceEnter(300, ctx);
+  D3DTraceEnter(300, ctx, base);
   __imp__sub_82CCAE28(ctx, base);
   D3DTraceLeave(300);
 }
 REX_HOOK_RAW(sub_82CCAF00) {
-  D3DTraceEnter(301, ctx);
+  D3DTraceEnter(301, ctx, base);
   __imp__sub_82CCAF00(ctx, base);
   D3DTraceLeave(301);
 }
 REX_HOOK_RAW(sub_82CCAFC8) {
-  D3DTraceEnter(302, ctx);
+  D3DTraceEnter(302, ctx, base);
   __imp__sub_82CCAFC8(ctx, base);
   D3DTraceLeave(302);
 }
 REX_HOOK_RAW(sub_82CCB088) {
-  D3DTraceEnter(303, ctx);
+  D3DTraceEnter(303, ctx, base);
   __imp__sub_82CCB088(ctx, base);
   D3DTraceLeave(303);
 }
 REX_HOOK_RAW(sub_82CCB150) {
-  D3DTraceEnter(304, ctx);
+  D3DTraceEnter(304, ctx, base);
   __imp__sub_82CCB150(ctx, base);
   D3DTraceLeave(304);
 }
 REX_HOOK_RAW(sub_82CCB168) {
-  D3DTraceEnter(305, ctx);
+  D3DTraceEnter(305, ctx, base);
   __imp__sub_82CCB168(ctx, base);
   D3DTraceLeave(305);
 }
 REX_HOOK_RAW(sub_82CCB3B0) {
-  D3DTraceEnter(306, ctx);
+  D3DTraceEnter(306, ctx, base);
   __imp__sub_82CCB3B0(ctx, base);
   D3DTraceLeave(306);
 }
 REX_HOOK_RAW(sub_82CCB448) {
-  D3DTraceEnter(307, ctx);
+  D3DTraceEnter(307, ctx, base);
   __imp__sub_82CCB448(ctx, base);
   D3DTraceLeave(307);
 }
 REX_HOOK_RAW(sub_82CCB468) {
-  D3DTraceEnter(308, ctx);
+  D3DTraceEnter(308, ctx, base);
   __imp__sub_82CCB468(ctx, base);
   D3DTraceLeave(308);
 }
 REX_HOOK_RAW(sub_82CCB4B0) {
-  D3DTraceEnter(309, ctx);
+  D3DTraceEnter(309, ctx, base);
   __imp__sub_82CCB4B0(ctx, base);
   D3DTraceLeave(309);
 }
 REX_HOOK_RAW(sub_82CCB4D0) {
-  D3DTraceEnter(310, ctx);
+  D3DTraceEnter(310, ctx, base);
   __imp__sub_82CCB4D0(ctx, base);
   D3DTraceLeave(310);
 }
 REX_HOOK_RAW(sub_82CCB648) {
-  D3DTraceEnter(311, ctx);
+  D3DTraceEnter(311, ctx, base);
   __imp__sub_82CCB648(ctx, base);
   D3DTraceLeave(311);
 }
 REX_HOOK_RAW(sub_82CCBE90) {
-  D3DTraceEnter(312, ctx);
+  D3DTraceEnter(312, ctx, base);
   __imp__sub_82CCBE90(ctx, base);
   D3DTraceLeave(312);
 }
 REX_HOOK_RAW(sub_82CCBE98) {
-  D3DTraceEnter(313, ctx);
+  D3DTraceEnter(313, ctx, base);
   __imp__sub_82CCBE98(ctx, base);
   D3DTraceLeave(313);
 }
 REX_HOOK_RAW(sub_82CCECF8) {
-  D3DTraceEnter(314, ctx);
+  D3DTraceEnter(314, ctx, base);
   __imp__sub_82CCECF8(ctx, base);
   D3DTraceLeave(314);
 }
 REX_HOOK_RAW(sub_82CCEE78) {
-  D3DTraceEnter(315, ctx);
+  D3DTraceEnter(315, ctx, base);
   __imp__sub_82CCEE78(ctx, base);
   D3DTraceLeave(315);
 }
 REX_HOOK_RAW(sub_82CE59D0) {
-  D3DTraceEnter(316, ctx);
+  D3DTraceEnter(316, ctx, base);
   __imp__sub_82CE59D0(ctx, base);
   D3DTraceLeave(316);
 }
 REX_HOOK_RAW(sub_82CEC438) {
-  D3DTraceEnter(317, ctx);
+  D3DTraceEnter(317, ctx, base);
   __imp__sub_82CEC438(ctx, base);
   D3DTraceLeave(317);
 }
 REX_HOOK_RAW(sub_82CECB48) {
-  D3DTraceEnter(318, ctx);
+  D3DTraceEnter(318, ctx, base);
   __imp__sub_82CECB48(ctx, base);
   D3DTraceLeave(318);
 }
 REX_HOOK_RAW(sub_82CECBF0) {
-  D3DTraceEnter(319, ctx);
+  D3DTraceEnter(319, ctx, base);
   __imp__sub_82CECBF0(ctx, base);
   D3DTraceLeave(319);
 }
 REX_HOOK_RAW(sub_82CF1760) {
-  D3DTraceEnter(320, ctx);
+  D3DTraceEnter(320, ctx, base);
   __imp__sub_82CF1760(ctx, base);
   D3DTraceLeave(320);
 }
 REX_HOOK_RAW(sub_82CF17C8) {
-  D3DTraceEnter(321, ctx);
+  D3DTraceEnter(321, ctx, base);
   __imp__sub_82CF17C8(ctx, base);
   D3DTraceLeave(321);
 }
 REX_HOOK_RAW(sub_82CF22D8) {
-  D3DTraceEnter(322, ctx);
+  D3DTraceEnter(322, ctx, base);
   __imp__sub_82CF22D8(ctx, base);
   D3DTraceLeave(322);
 }
 REX_HOOK_RAW(sub_82CF2538) {
-  D3DTraceEnter(323, ctx);
+  D3DTraceEnter(323, ctx, base);
   __imp__sub_82CF2538(ctx, base);
   D3DTraceLeave(323);
 }
 REX_HOOK_RAW(sub_82CFC7C8) {
-  D3DTraceEnter(324, ctx);
+  D3DTraceEnter(324, ctx, base);
   __imp__sub_82CFC7C8(ctx, base);
   D3DTraceLeave(324);
 }
 REX_HOOK_RAW(sub_82D012A0) {
-  D3DTraceEnter(325, ctx);
+  D3DTraceEnter(325, ctx, base);
   __imp__sub_82D012A0(ctx, base);
   D3DTraceLeave(325);
 }
 REX_HOOK_RAW(sub_82D01F68) {
-  D3DTraceEnter(326, ctx);
+  D3DTraceEnter(326, ctx, base);
   __imp__sub_82D01F68(ctx, base);
   D3DTraceLeave(326);
 }
 REX_HOOK_RAW(sub_82D02048) {
-  D3DTraceEnter(327, ctx);
+  D3DTraceEnter(327, ctx, base);
   __imp__sub_82D02048(ctx, base);
   D3DTraceLeave(327);
 }
 REX_HOOK_RAW(sub_82D021B0) {
-  D3DTraceEnter(328, ctx);
+  D3DTraceEnter(328, ctx, base);
   __imp__sub_82D021B0(ctx, base);
   D3DTraceLeave(328);
 }
 REX_HOOK_RAW(sub_82D02400) {
-  D3DTraceEnter(329, ctx);
+  D3DTraceEnter(329, ctx, base);
   __imp__sub_82D02400(ctx, base);
   D3DTraceLeave(329);
 }
 REX_HOOK_RAW(sub_82D02C18) {
-  D3DTraceEnter(330, ctx);
+  D3DTraceEnter(330, ctx, base);
   __imp__sub_82D02C18(ctx, base);
   D3DTraceLeave(330);
 }
 REX_HOOK_RAW(sub_82D04588) {
-  D3DTraceEnter(331, ctx);
+  D3DTraceEnter(331, ctx, base);
   __imp__sub_82D04588(ctx, base);
   D3DTraceLeave(331);
 }
 REX_HOOK_RAW(sub_82D0C638) {
-  D3DTraceEnter(332, ctx);
+  D3DTraceEnter(332, ctx, base);
   __imp__sub_82D0C638(ctx, base);
   D3DTraceLeave(332);
 }
 REX_HOOK_RAW(sub_82D0C640) {
-  D3DTraceEnter(333, ctx);
+  D3DTraceEnter(333, ctx, base);
   __imp__sub_82D0C640(ctx, base);
   D3DTraceLeave(333);
 }
 REX_HOOK_RAW(sub_82D0C720) {
-  D3DTraceEnter(334, ctx);
+  D3DTraceEnter(334, ctx, base);
   __imp__sub_82D0C720(ctx, base);
   D3DTraceLeave(334);
 }
 REX_HOOK_RAW(sub_82D0C7C8) {
-  D3DTraceEnter(335, ctx);
+  D3DTraceEnter(335, ctx, base);
   __imp__sub_82D0C7C8(ctx, base);
   D3DTraceLeave(335);
 }
 REX_HOOK_RAW(sub_82D0C928) {
-  D3DTraceEnter(336, ctx);
+  D3DTraceEnter(336, ctx, base);
   __imp__sub_82D0C928(ctx, base);
   D3DTraceLeave(336);
 }
 REX_HOOK_RAW(sub_82D0D8C0) {
-  D3DTraceEnter(337, ctx);
+  D3DTraceEnter(337, ctx, base);
   __imp__sub_82D0D8C0(ctx, base);
   D3DTraceLeave(337);
 }
 REX_HOOK_RAW(sub_82D0DA58) {
-  D3DTraceEnter(338, ctx);
+  D3DTraceEnter(338, ctx, base);
   __imp__sub_82D0DA58(ctx, base);
   D3DTraceLeave(338);
 }
 REX_HOOK_RAW(sub_82D0DB98) {
-  D3DTraceEnter(339, ctx);
+  D3DTraceEnter(339, ctx, base);
   __imp__sub_82D0DB98(ctx, base);
   D3DTraceLeave(339);
 }
 REX_HOOK_RAW(sub_82D0DDF0) {
-  D3DTraceEnter(340, ctx);
+  D3DTraceEnter(340, ctx, base);
   __imp__sub_82D0DDF0(ctx, base);
   D3DTraceLeave(340);
 }
 REX_HOOK_RAW(sub_82D0E018) {
-  D3DTraceEnter(341, ctx);
+  D3DTraceEnter(341, ctx, base);
   __imp__sub_82D0E018(ctx, base);
   D3DTraceLeave(341);
 }
 REX_HOOK_RAW(sub_82D0E4C8) {
-  D3DTraceEnter(342, ctx);
+  D3DTraceEnter(342, ctx, base);
   __imp__sub_82D0E4C8(ctx, base);
   D3DTraceLeave(342);
 }
 REX_HOOK_RAW(sub_82D0EA80) {
-  D3DTraceEnter(343, ctx);
+  D3DTraceEnter(343, ctx, base);
   __imp__sub_82D0EA80(ctx, base);
   D3DTraceLeave(343);
 }
 REX_HOOK_RAW(sub_82D0EDF0) {
-  D3DTraceEnter(344, ctx);
+  D3DTraceEnter(344, ctx, base);
   __imp__sub_82D0EDF0(ctx, base);
   D3DTraceLeave(344);
 }
 REX_HOOK_RAW(sub_82D0F6E0) {
-  D3DTraceEnter(345, ctx);
+  D3DTraceEnter(345, ctx, base);
   __imp__sub_82D0F6E0(ctx, base);
   D3DTraceLeave(345);
 }
 REX_HOOK_RAW(sub_82D0FE70) {
-  D3DTraceEnter(346, ctx);
+  D3DTraceEnter(346, ctx, base);
   __imp__sub_82D0FE70(ctx, base);
   D3DTraceLeave(346);
 }
 REX_HOOK_RAW(sub_82F48820) {
-  D3DTraceEnter(347, ctx);
+  D3DTraceEnter(347, ctx, base);
   __imp__sub_82F48820(ctx, base);
   D3DTraceLeave(347);
 }
 REX_HOOK_RAW(sub_82F49960) {
-  D3DTraceEnter(348, ctx);
+  D3DTraceEnter(348, ctx, base);
   __imp__sub_82F49960(ctx, base);
   D3DTraceLeave(348);
 }
 REX_HOOK_RAW(sub_82F4A7B0) {
-  D3DTraceEnter(349, ctx);
+  D3DTraceEnter(349, ctx, base);
   __imp__sub_82F4A7B0(ctx, base);
   D3DTraceLeave(349);
 }
 REX_HOOK_RAW(sub_82F4ACE0) {
-  D3DTraceEnter(350, ctx);
+  D3DTraceEnter(350, ctx, base);
   __imp__sub_82F4ACE0(ctx, base);
   D3DTraceLeave(350);
 }
 REX_HOOK_RAW(sub_82F4AE18) {
-  D3DTraceEnter(351, ctx);
+  D3DTraceEnter(351, ctx, base);
   __imp__sub_82F4AE18(ctx, base);
   D3DTraceLeave(351);
 }
 REX_HOOK_RAW(sub_82F4B250) {
-  D3DTraceEnter(352, ctx);
+  D3DTraceEnter(352, ctx, base);
   __imp__sub_82F4B250(ctx, base);
   D3DTraceLeave(352);
 }
 REX_HOOK_RAW(sub_82F4B380) {
-  D3DTraceEnter(353, ctx);
+  D3DTraceEnter(353, ctx, base);
   __imp__sub_82F4B380(ctx, base);
   D3DTraceLeave(353);
 }
 REX_HOOK_RAW(sub_82F4B4F8) {
-  D3DTraceEnter(354, ctx);
+  D3DTraceEnter(354, ctx, base);
   __imp__sub_82F4B4F8(ctx, base);
   D3DTraceLeave(354);
 }
 REX_HOOK_RAW(sub_82F4B6A8) {
-  D3DTraceEnter(355, ctx);
+  D3DTraceEnter(355, ctx, base);
   __imp__sub_82F4B6A8(ctx, base);
   D3DTraceLeave(355);
 }
 REX_HOOK_RAW(sub_82F4B7C0) {
-  D3DTraceEnter(356, ctx);
+  D3DTraceEnter(356, ctx, base);
   __imp__sub_82F4B7C0(ctx, base);
   D3DTraceLeave(356);
 }
 REX_HOOK_RAW(sub_82F4B838) {
-  D3DTraceEnter(357, ctx);
+  D3DTraceEnter(357, ctx, base);
   __imp__sub_82F4B838(ctx, base);
   D3DTraceLeave(357);
 }
 REX_HOOK_RAW(sub_82F4B9C0) {
-  D3DTraceEnter(358, ctx);
+  D3DTraceEnter(358, ctx, base);
   __imp__sub_82F4B9C0(ctx, base);
   D3DTraceLeave(358);
 }
 REX_HOOK_RAW(sub_82F4BB98) {
-  D3DTraceEnter(359, ctx);
+  D3DTraceEnter(359, ctx, base);
   __imp__sub_82F4BB98(ctx, base);
   D3DTraceLeave(359);
 }
 REX_HOOK_RAW(sub_82F4BC58) {
-  D3DTraceEnter(360, ctx);
+  D3DTraceEnter(360, ctx, base);
   __imp__sub_82F4BC58(ctx, base);
   D3DTraceLeave(360);
 }
 REX_HOOK_RAW(sub_82F4BDD8) {
-  D3DTraceEnter(361, ctx);
+  D3DTraceEnter(361, ctx, base);
   __imp__sub_82F4BDD8(ctx, base);
   D3DTraceLeave(361);
 }
 REX_HOOK_RAW(sub_82F4BED8) {
-  D3DTraceEnter(362, ctx);
+  D3DTraceEnter(362, ctx, base);
   __imp__sub_82F4BED8(ctx, base);
   D3DTraceLeave(362);
 }
 REX_HOOK_RAW(sub_82F4BF40) {
-  D3DTraceEnter(363, ctx);
+  D3DTraceEnter(363, ctx, base);
   __imp__sub_82F4BF40(ctx, base);
   D3DTraceLeave(363);
 }
 REX_HOOK_RAW(sub_82F4BFE8) {
-  D3DTraceEnter(364, ctx);
+  D3DTraceEnter(364, ctx, base);
   __imp__sub_82F4BFE8(ctx, base);
   D3DTraceLeave(364);
 }

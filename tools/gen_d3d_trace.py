@@ -53,7 +53,7 @@ def main():
     out.append(f"const uint32_t kD3DTraceSwapIndex = {swap_index};\n\n")
     for i, a in enumerate(targets):
         out.append(f"REX_HOOK_RAW(sub_{a:08X}) {{\n"
-                   f"  D3DTraceEnter({i}, ctx);\n"
+                   f"  D3DTraceEnter({i}, ctx, base);\n"
                    f"  __imp__sub_{a:08X}(ctx, base);\n"
                    f"  D3DTraceLeave({i});\n"
                    f"}}\n")

@@ -16,17 +16,27 @@
 #include <chrono>
 #include <cstdio>
 #include <mutex>
+#include <set>
 #include <string>
 #include <vector>
 
+#include <fmt/format.h>
 #include <rex/cvar.h>
+#include <rex/hook.h>
 #include <rex/logging.h>
+
+#include "generated/default/skate1_init.h"
 
 REXCVAR_DEFINE_INT32(d3d_trace_start_seconds, 0, "Skate1",
                      "Seconds after launch to start tracing XDK graphics library calls (0 = off)")
     .range(0, 3600);
 REXCVAR_DEFINE_INT32(d3d_trace_frames, 120, "Skate1", "Frames to trace graphics library calls over")
     .range(1, 100000);
+REXCVAR_DEFINE_BOOL(d3d_trace_shader_args, false, "Skate1",
+                    "From launch, log the first calls of graphics library functions that get a "
+                    "pointer to an XDK shader container (magic 0x102A....) as an argument");
+REXCVAR_DEFINE_STRING(d3d_trace_shader_dir, "", "Skate1",
+                      "With d3d_trace_shader_args, directory to dump each shader container to");
 REXCVAR_DEFINE_STRING(d3d_trace_path, "d3d_trace.txt", "Skate1",
                       "File the graphics library call trace is written to");
 
@@ -134,8 +144,50 @@ void OnSwap() {
 
 }  // namespace
 
-void D3DTraceEnter(uint32_t index, const PPCContext& ctx) {
+void D3DTraceEnter(uint32_t index, const PPCContext& ctx, uint8_t* base) {
   int depth = t_depth++;
+  if (depth == 0 && REXCVAR_GET(d3d_trace_shader_args)) {
+    static std::atomic<uint32_t> logged[kMaxFunctions];
+    const uint32_t args[4] = {ctx.r3.u32, ctx.r4.u32, ctx.r5.u32, ctx.r6.u32};
+    for (uint32_t a = 0; a < 4; ++a) {
+      uint32_t address = args[a];
+      if (address < 0x40000000 || address >= 0xA0000000 || (address & 3)) {
+        continue;
+      }
+      uint32_t magic = REX_LOAD_U32(address);
+      if ((magic >> 16) == 0x102A) {
+        // Dump each container once (virtual part, then the physical part
+        // that follows it in the same allocation).
+        static std::mutex dump_mutex;
+        static std::set<uint32_t> dumped;
+        std::string dir = REXCVAR_GET(d3d_trace_shader_dir);
+        if (!dir.empty()) {
+          std::lock_guard<std::mutex> lock(dump_mutex);
+          if (dumped.insert(address).second) {
+            uint32_t size = REX_LOAD_U32(address + 4) + REX_LOAD_U32(address + 8);
+            if (size && size < (1u << 20)) {
+              std::vector<uint8_t> bytes(size);
+              for (uint32_t i = 0; i < size; ++i) {
+                bytes[i] = REX_LOAD_U8(address + i);
+              }
+              std::string path = fmt::format("{}/{:08X}_{}.bin", dir, address,
+                                             (magic & 1) ? "ps" : "vs");
+              if (FILE* f = std::fopen(path.c_str(), "wb")) {
+                std::fwrite(bytes.data(), 1, bytes.size(), f);
+                std::fclose(f);
+              }
+            }
+          }
+        }
+      }
+      if ((magic >> 16) == 0x102A && logged[index].fetch_add(1) < 4) {
+        REXLOG_INFO("TMPSHADER fn={:08X} arg=r{} ptr={:08X} words={:08X} {:08X} {:08X} {:08X} {:08X} {:08X}",
+                    kD3DTraceAddresses[index], a + 3, address, magic, REX_LOAD_U32(address + 4),
+                    REX_LOAD_U32(address + 8), REX_LOAD_U32(address + 12),
+                    REX_LOAD_U32(address + 16), REX_LOAD_U32(address + 20));
+      }
+    }
+  }
   if (index == kD3DTraceSwapIndex && depth == 0) {
     OnSwap();
   }
