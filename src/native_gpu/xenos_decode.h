@@ -261,6 +261,55 @@ inline int32_t TiledOffset2D(int32_t x, int32_t y, uint32_t pitch, uint32_t byte
          (((((y & 8) >> 2) + (x >> 3)) & 3) << 6) + (offset & 0x3F);
 }
 
+// Offset of block (x, y, z) in a tiled 3D volume (pitch and height in
+// blocks), from the SDK's texture util (XGRAPHICS::TileVolume).
+inline int32_t TiledOffset3D(int32_t x, int32_t y, int32_t z, uint32_t pitch, uint32_t height,
+                             uint32_t bytes_per_block_log2) {
+  pitch = (pitch + 31) & ~31u;
+  height = (height + 31) & ~31u;
+  const int32_t macro_outer = ((y >> 4) + (z >> 2) * int32_t(height >> 4)) * int32_t(pitch >> 5);
+  const int32_t macro = ((((x >> 5) + macro_outer) << (bytes_per_block_log2 + 6)) & 0xFFFFFFF) << 1;
+  const int32_t micro = (((x & 7) + ((y & 6) << 2)) << (bytes_per_block_log2 + 6)) >> 6;
+  const int32_t offset_outer = ((y >> 3) + (z >> 2)) & 1;
+  const int32_t offset1 = offset_outer + ((((x >> 3) + (offset_outer << 1)) & 3) << 1);
+  const int32_t offset2 = ((macro + (micro & ~15)) << 1) + (micro & 15) +
+                          ((z & 3) << (bytes_per_block_log2 + 6)) + ((y & 1) << 4);
+  int32_t address = (offset1 & 1) << 3;
+  address += (offset2 >> 6) & 7;
+  address <<= 3;
+  address += offset1 & ~1;
+  address <<= 2;
+  address += offset2 & ~511;
+  address <<= 3;
+  address += offset2 & 63;
+  return address;
+}
+
+// Copies the base level of a tiled 3D texture into a linear host layout
+// (rows, then slices), in host byte order. Returns the row pitch in bytes, or
+// 0 if unsupported (block-compressed or linear volumes).
+inline uint32_t UntileTexture3D(const uint8_t* physical, const TextureFetch& t, uint8_t* out) {
+  const TextureBlock block = GetTextureBlock(t.format);
+  if (!block.bytes || block.size != 1 || !t.tiled) return 0;
+  uint32_t log2 = 0;
+  while ((1u << log2) < block.bytes) ++log2;
+  const uint32_t pitch = std::max(t.pitch, t.width);
+  const uint32_t row_bytes = t.width * block.bytes;
+  const uint8_t* src = physical + (t.address & 0x1FFFFFFF);
+  for (uint32_t z = 0; z < t.depth; ++z) {
+    for (uint32_t y = 0; y < t.height; ++y) {
+      uint8_t* row = out + (size_t(z) * t.height + y) * row_bytes;
+      for (uint32_t x = 0; x < t.width; ++x) {
+        std::memcpy(row + x * block.bytes,
+                    src + TiledOffset3D(int32_t(x), int32_t(y), int32_t(z), pitch, t.height, log2),
+                    block.bytes);
+      }
+    }
+  }
+  SwapEndian(out, size_t(row_bytes) * t.height * t.depth, t.endian);
+  return row_bytes;
+}
+
 // Copies the base level of slice `slice` of a texture out of guest memory
 // into a linear host layout (rows of blocks), in host byte order. Returns the
 // row pitch in bytes, or 0 if the format is not supported.
