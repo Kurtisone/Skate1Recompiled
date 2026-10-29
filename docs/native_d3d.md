@@ -123,6 +123,14 @@ archives': the patched fetches are where the input layout can be read.
 `82B0E1F0` derives vertex shaders at runtime from existing ones
 (`82CC0E58`, `82CC4470`); their microcode is in the cache too.
 
+Frame capture (2026-10-29, `native_gpu_capture_seconds`, read with
+`tools/d3d/capture.py --passes`), free skate at MJC, emulated config with
+tiling: 3x shadow/light passes (512x512 and 2048x512, 16_16), the scene
+(1280x720 4x MSAA, 3 tiles, 624 draws, color and depth resolved to
+1E091000 / 1E429000), bloom chain (320x180, 80x45, 32x16), DOF (640x360),
+composite 1280x720, HUD (~25 draws), final resolve to the front buffer
+1EC08000. 682 draws, 62 shader pairs, all in the cache.
+
 Milestone B: replay one captured frame offscreen with plume and save it next
 to the emulated frame on the headless benchmark for comparison.
 
