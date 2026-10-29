@@ -1637,11 +1637,6 @@ REX_HOOK_RAW(sub_82CCBE90) {
   __imp__sub_82CCBE90(ctx, base);
   D3DTraceLeave(312);
 }
-REX_HOOK_RAW(sub_82CCBE98) {
-  D3DTraceEnter(313, ctx, base);
-  __imp__sub_82CCBE98(ctx, base);
-  D3DTraceLeave(313);
-}
 REX_HOOK_RAW(sub_82CCECF8) {
   D3DTraceEnter(314, ctx, base);
   __imp__sub_82CCECF8(ctx, base);

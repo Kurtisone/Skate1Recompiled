@@ -16,6 +16,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 RANGES = [(0x82C80000, 0x82D10000), (0x82F48000, 0x82F4C000)]
 SWAP = 0x82CCBE98  # D3DDevice_Swap: frame boundary
+# Hooked elsewhere (src/frame_cap.cpp), which reports to the tracer itself.
+HOOKED_ELSEWHERE = {SWAP}
 
 
 def in_range(a):
@@ -52,6 +54,8 @@ def main():
     out.append(f"const uint32_t kD3DTraceCount = {len(targets)};\n")
     out.append(f"const uint32_t kD3DTraceSwapIndex = {swap_index};\n\n")
     for i, a in enumerate(targets):
+        if a in HOOKED_ELSEWHERE:
+            continue
         out.append(f"REX_HOOK_RAW(sub_{a:08X}) {{\n"
                    f"  D3DTraceEnter({i}, ctx, base);\n"
                    f"  __imp__sub_{a:08X}(ctx, base);\n"

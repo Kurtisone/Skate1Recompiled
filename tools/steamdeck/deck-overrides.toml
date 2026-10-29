@@ -36,3 +36,6 @@ vulkan_submit_on_primary_buffer_end = false
 # the GPU renders the scene once. Edges are aliased: FXAA at the swap
 # (swap_post_effect) also blurs the HUD, so it stays off.
 scene_msaa_off = true
+# Skate ran at 30 FPS on the Xbox 360; with the single-pass scene it would
+# otherwise run up to ~40-60 and burn heat and battery for nothing visible.
+frame_rate_cap = 30
