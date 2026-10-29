@@ -43,6 +43,8 @@ REXCVAR_DEFINE_BOOL(native_gpu_render, false, "Skate1",
 REXCVAR_DEFINE_BOOL(native_gpu_present, false, "Skate1",
                     "Show the native renderer's frames (with native_gpu_render; pair with "
                     "gpu_skip_guest_draws so the emulated GPU does not render them too)");
+REXCVAR_DEFINE_INT32(native_gpu_stats_seconds, 10, "Skate1",
+                     "Log frame rate and native renderer time every this many seconds (0 = off)");
 REXCVAR_DEFINE_INT32(native_gpu_dump_seconds, 0, "Skate1",
                      "Write the native front buffer this many seconds after the first frame "
                      "(0 = never)");
@@ -229,8 +231,16 @@ void StartLiveRenderer(plume::RenderDevice* device, rex::memory::Memory* memory)
   REXLOG_INFO("native_gpu: live rendering on{}", REXCVAR_GET(native_gpu_present) ? ", presenting" : "");
 }
 
+// Time spent in the renderer on the game's render thread, for the stats line.
+std::chrono::steady_clock::duration g_renderer_time{};
+
 void LiveRendererOnCall(uint32_t function, const PPCContext& before, uint32_t result, uint8_t* base) {
   if (!g_renderer) return;
+  const auto start = std::chrono::steady_clock::now();
+  struct Timer {
+    std::chrono::steady_clock::time_point start;
+    ~Timer() { g_renderer_time += std::chrono::steady_clock::now() - start; }
+  } timer{start};
   const xenos::DeviceState state{base + kDevice};
   switch (function) {
     case 0x82CB29D8:  // BeginVertices(device, prim, count, stride) -> vertex pointer
@@ -339,6 +349,27 @@ void LiveRendererOnCall(uint32_t function, const PPCContext& before, uint32_t re
 void LiveRendererOnSwap(uint8_t* base) {
   (void)base;
   if (!g_renderer) return;
+  const auto swap_start = std::chrono::steady_clock::now();
+  struct Timer {
+    std::chrono::steady_clock::time_point start;
+    ~Timer() { g_renderer_time += std::chrono::steady_clock::now() - start; }
+  } timer{swap_start};
+  // Periodic stats: frames per second, average frame time and the renderer's
+  // share of it on the render thread.
+  static auto stats_start = swap_start;
+  static uint32_t stats_frames = 0;
+  ++stats_frames;
+  const int32_t stats_seconds = REXCVAR_GET(native_gpu_stats_seconds);
+  const auto elapsed = swap_start - stats_start;
+  if (stats_seconds > 0 && elapsed >= std::chrono::seconds(stats_seconds)) {
+    const double seconds = std::chrono::duration<double>(elapsed).count();
+    const double renderer_ms = std::chrono::duration<double, std::milli>(g_renderer_time).count();
+    REXLOG_INFO("native_gpu: {:.1f} FPS, {:.1f} ms/frame, renderer {:.1f} ms/frame on the render thread",
+                stats_frames / seconds, 1000.0 * seconds / stats_frames, renderer_ms / stats_frames);
+    stats_start = swap_start;
+    stats_frames = 0;
+    g_renderer_time = {};
+  }
   static const bool registered = REXCVAR_GET(native_gpu_present) && RegisterPresenter();
   const bool present = registered && REXCVAR_GET(native_gpu_present);
   g_renderer->EndFrame(present ? g_front_buffer : 0);
