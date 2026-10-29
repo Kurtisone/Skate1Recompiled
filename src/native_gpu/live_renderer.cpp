@@ -18,7 +18,10 @@
 #include <climits>
 #include <cstdio>
 #include <memory>
+#include <condition_variable>
 #include <mutex>
+#include <optional>
+#include <thread>
 #include <unordered_set>
 #include <string>
 #include <vector>
@@ -184,7 +187,6 @@ bool PresentNativeFrame(const rex::graphics::NativeGuestOutputRenderContext& con
   context.cmd->FlushBarriers();
   return true;
 }
-uint32_t g_front_buffer = 0;
 uint32_t g_inline_vertices = 0;
 uint32_t g_inline_primitive = 0;
 uint32_t g_inline_count = 0;
@@ -217,6 +219,8 @@ void WritePpm(const std::string& path, const std::vector<uint8_t>& rgba, uint32_
 
 }  // namespace
 
+void RendererThread();
+
 void StartLiveRenderer(plume::RenderDevice* device, rex::memory::Memory* memory) {
   if (!REXCVAR_GET(native_gpu_render)) return;
   g_memory = memory;
@@ -227,7 +231,7 @@ void StartLiveRenderer(plume::RenderDevice* device, rex::memory::Memory* memory)
     g_renderer.reset();
     return;
   }
-  g_renderer->BeginFrame();
+  std::thread(RendererThread).detach();
   REXLOG_INFO("native_gpu: live rendering on{}", REXCVAR_GET(native_gpu_present) ? ", presenting" : "");
 }
 
@@ -236,6 +240,116 @@ std::chrono::steady_clock::duration g_renderer_time{};
 
 // The vertex microcode the GPU runs (the last IM_LOAD D3D wrote).
 uint32_t g_vs_microcode = 0, g_vs_microcode_size = 0;
+
+// The frame's calls, rendered at Swap: on the console the GPU only reads
+// vertices, indices and textures when it runs the frame, and the game may
+// fill them after issuing a draw (the skater's cloth). Each call keeps a copy
+// of the device state it was issued with (registers and constants are set
+// at that point).
+constexpr uint32_t kStateSize = 0x3400;
+struct DeferredCall {
+  enum class Kind { kDraw, kClear, kResolve } kind;
+  size_t state;  // offset in the frame's arena
+  native_gpu::DrawCall draw;
+  native_gpu::ClearCall clear;
+  native_gpu::ResolveCall resolve;
+  size_t inline_vertices = SIZE_MAX;  // copied into the arena (the command buffer is reused)
+};
+// A recorded frame, rendered by the renderer thread.
+struct Frame {
+  std::vector<DeferredCall> calls;
+  std::vector<uint8_t> arena;
+  uint32_t front_buffer = 0;
+  bool dump = false;
+};
+Frame g_recording;
+
+size_t SnapshotState(uint8_t* base) {
+  std::vector<uint8_t>& arena = g_recording.arena;
+  const size_t offset = arena.size();
+  arena.insert(arena.end(), base + kDevice, base + kDevice + kStateSize);
+  return offset;
+}
+
+void RenderDeferredCalls(Frame& frame) {
+  for (DeferredCall& call : frame.calls) {
+    const xenos::DeviceState state{frame.arena.data() + call.state};
+    switch (call.kind) {
+      case DeferredCall::Kind::kDraw:
+        call.draw.state = state;
+        if (call.inline_vertices != SIZE_MAX) {
+          call.draw.inline_vertices = frame.arena.data() + call.inline_vertices;
+        }
+        g_renderer->Draw(call.draw);
+        break;
+      case DeferredCall::Kind::kClear:
+        call.clear.state = state;
+        g_renderer->Clear(call.clear);
+        break;
+      case DeferredCall::Kind::kResolve:
+        call.resolve.state = state;
+        g_renderer->Resolve(call.resolve);
+        break;
+    }
+  }
+}
+
+// The renderer thread: renders, submits and reads back each recorded frame
+// while the game records the next one (as the console's GPU runs a frame
+// behind the CPU). One frame is handed over at a time.
+std::mutex g_queue_mutex;
+std::condition_variable g_queue_cv;
+std::optional<Frame> g_queued;
+bool g_busy = false;
+std::chrono::steady_clock::duration g_thread_time{};
+bool g_present = false;
+
+void RenderFrame(Frame& frame) {
+  const auto start = std::chrono::steady_clock::now();
+  g_renderer->BeginFrame();
+  RenderDeferredCalls(frame);
+  g_renderer->EndFrame(g_present ? frame.front_buffer : 0);
+  if (const uint32_t* pixels = g_present ? g_renderer->presented() : nullptr) {
+    std::lock_guard<std::mutex> lock(g_frame_mutex);
+    g_frame_width = g_renderer->presented_width();
+    g_frame_height = g_renderer->presented_height();
+    g_frame.assign(pixels, pixels + size_t(g_frame_width) * g_frame_height);
+  }
+  if (frame.dump) {
+    g_renderer->WaitIdle();
+    std::vector<uint8_t> rgba;
+    uint32_t width = 0, height = 0;
+    if (g_renderer->ReadResolved(frame.front_buffer, rgba, width, height)) {
+      WritePpm(REXCVAR_GET(native_gpu_dump_path), rgba, width, height);
+      REXLOG_INFO("native_gpu: front buffer {:08X} written to {}", frame.front_buffer,
+                  REXCVAR_GET(native_gpu_dump_path));
+    }
+    for (const auto& [what, count] : g_renderer->stats()) {
+      REXLOG_INFO("native_gpu: {} {}", count, what);
+    }
+  }
+  g_thread_time += std::chrono::steady_clock::now() - start;
+}
+
+void RendererThread() {
+  for (;;) {
+    Frame frame;
+    {
+      std::unique_lock<std::mutex> lock(g_queue_mutex);
+      g_queue_cv.wait(lock, [] { return g_queued.has_value(); });
+      frame = std::move(*g_queued);
+      g_queued.reset();
+      g_busy = true;
+    }
+    RenderFrame(frame);
+    {
+      std::lock_guard<std::mutex> lock(g_queue_mutex);
+      g_busy = false;
+    }
+    g_queue_cv.notify_all();
+  }
+}
+
 
 void LiveRendererOnCall(uint32_t function, const PPCContext& before, uint32_t result, uint8_t* base,
                         uint32_t packets_start) {
@@ -301,7 +415,15 @@ void LiveRendererOnCall(uint32_t function, const PPCContext& before, uint32_t re
         call.start = before.r5.u32;
         call.count = before.r6.u32;
       }
-      g_renderer->Draw(call);
+      {
+        DeferredCall deferred{DeferredCall::Kind::kDraw, SnapshotState(base), call, {}, {}};
+        if (call.inline_vertices) {
+          std::vector<uint8_t>& arena = g_recording.arena;
+          deferred.inline_vertices = arena.size();
+          arena.insert(arena.end(), call.inline_vertices, call.inline_vertices + call.inline_size);
+        }
+        g_recording.calls.push_back(deferred);
+      }
       break;
     }
     case 0x82CC7510: {  // ClearF(device, flags, rect, color)
@@ -312,7 +434,7 @@ void LiveRendererOnCall(uint32_t function, const PPCContext& before, uint32_t re
       ReadColor(base, before.r6.u32, call.color);
       call.depth = float(before.f1.f64);
       call.stencil = before.r7.u32;
-      g_renderer->Clear(call);
+      g_recording.calls.push_back({DeferredCall::Kind::kClear, SnapshotState(base), {}, call, {}});
       break;
     }
     case 0x82CC4FF0: {  // BeginTiling(device, flags, count, tile rects, clear color, ...)
@@ -337,7 +459,7 @@ void LiveRendererOnCall(uint32_t function, const PPCContext& before, uint32_t re
         ReadColor(base, before.r7.u32, call.color);
       }
       call.depth = float(before.f1.f64);  // ClearZ
-      g_renderer->Clear(call);
+      g_recording.calls.push_back({DeferredCall::Kind::kClear, SnapshotState(base), {}, call, {}});
       break;
     }
     case 0x82CC7FF0: {  // Resolve(device, flags, source rect, texture, dest point, ...)
@@ -351,8 +473,8 @@ void LiveRendererOnCall(uint32_t function, const PPCContext& before, uint32_t re
         call.dest_y = int32_t(REX_LOAD_U32(before.r7.u32 + 4));
       }
       call.clear_depth = float(before.f1.f64);  // ClearZ
-      g_renderer->Resolve(call);
-      if (!(call.flags & 4)) g_front_buffer = state.Reg(0x2319);  // RB_COPY_DEST_BASE
+      g_recording.calls.push_back({DeferredCall::Kind::kResolve, SnapshotState(base), {}, {}, call});
+      if (!(call.flags & 4)) g_recording.front_buffer = state.Reg(0x2319);  // RB_COPY_DEST_BASE
       break;
     }
     default:
@@ -378,21 +500,18 @@ void LiveRendererOnSwap(uint8_t* base) {
   if (stats_seconds > 0 && elapsed >= std::chrono::seconds(stats_seconds)) {
     const double seconds = std::chrono::duration<double>(elapsed).count();
     const double renderer_ms = std::chrono::duration<double, std::milli>(g_renderer_time).count();
-    REXLOG_INFO("native_gpu: {:.1f} FPS, {:.1f} ms/frame, renderer {:.1f} ms/frame on the render thread",
-                stats_frames / seconds, 1000.0 * seconds / stats_frames, renderer_ms / stats_frames);
+    const double thread_ms = std::chrono::duration<double, std::milli>(g_thread_time).count();
+    REXLOG_INFO("native_gpu: {:.1f} FPS, {:.1f} ms/frame, {:.1f} ms/frame on the render thread, "
+                "{:.1f} ms/frame on the renderer thread",
+                stats_frames / seconds, 1000.0 * seconds / stats_frames, renderer_ms / stats_frames,
+                thread_ms / stats_frames);
+    g_thread_time = {};
     stats_start = swap_start;
     stats_frames = 0;
     g_renderer_time = {};
   }
   static const bool registered = REXCVAR_GET(native_gpu_present) && RegisterPresenter();
-  const bool present = registered && REXCVAR_GET(native_gpu_present);
-  g_renderer->EndFrame(present ? g_front_buffer : 0);
-  if (const uint32_t* pixels = present ? g_renderer->presented() : nullptr) {
-    std::lock_guard<std::mutex> lock(g_frame_mutex);
-    g_frame_width = g_renderer->presented_width();
-    g_frame_height = g_renderer->presented_height();
-    g_frame.assign(pixels, pixels + size_t(g_frame_width) * g_frame_height);
-  }
+  g_present = registered && REXCVAR_GET(native_gpu_present);
   static const auto first_frame = std::chrono::steady_clock::now();
   static bool dumped = false;
   const int32_t seconds = REXCVAR_GET(native_gpu_dump_seconds);
@@ -402,17 +521,15 @@ void LiveRendererOnSwap(uint8_t* base) {
   if (triggered || (!dumped && seconds > 0 &&
                     std::chrono::steady_clock::now() - first_frame >= std::chrono::seconds(seconds))) {
     dumped = true;
-    g_renderer->WaitIdle();
-    std::vector<uint8_t> rgba;
-    uint32_t width = 0, height = 0;
-    if (g_renderer->ReadResolved(g_front_buffer, rgba, width, height)) {
-      WritePpm(REXCVAR_GET(native_gpu_dump_path), rgba, width, height);
-      REXLOG_INFO("native_gpu: front buffer {:08X} written to {}", g_front_buffer,
-                  REXCVAR_GET(native_gpu_dump_path));
-    }
-    for (const auto& [what, count] : g_renderer->stats()) {
-      REXLOG_INFO("native_gpu: {} {}", count, what);
-    }
+    g_recording.dump = true;
   }
-  g_renderer->BeginFrame();
+  // Hand the frame over once the renderer thread has taken the previous one
+  // (at most one frame queued behind the one being rendered).
+  {
+    std::unique_lock<std::mutex> lock(g_queue_mutex);
+    g_queue_cv.wait(lock, [] { return !g_queued.has_value(); });
+    g_queued = std::move(g_recording);
+  }
+  g_queue_cv.notify_all();
+  g_recording = Frame{};
 }
