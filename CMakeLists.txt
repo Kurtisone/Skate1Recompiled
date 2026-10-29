@@ -23,6 +23,9 @@ set(SKATE1_SOURCES
     src/skip_intro.cpp
     src/perf_log.cpp
     src/capture_debug.cpp
+    src/d3d_trace.cpp
+    src/d3d_trace_runtime.cpp
+    src/scene_tiling.cpp
 )
 
 # Exe/window icon. The icon is the game's cover art, so it is not committed:

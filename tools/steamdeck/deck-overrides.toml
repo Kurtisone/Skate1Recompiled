@@ -30,3 +30,9 @@ audio_force_stereo = true
 # and submit once per frame instead of at each primary buffer end.
 vulkan_hoist_shared_memory_uploads = true
 vulkan_submit_on_primary_buffer_end = false
+# Render the 3D scene single-sampled in one pass instead of 4x MSAA in three
+# predicated tiles: the GPU emulation thread translates each scene draw once
+# instead of three times (~2060 -> ~800 draws per frame in free skate), and
+# the GPU renders the scene once. FXAA at the swap smooths the edges back.
+scene_msaa_off = true
+swap_post_effect = 'fxaa'
