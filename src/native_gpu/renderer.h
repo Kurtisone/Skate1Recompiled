@@ -167,6 +167,11 @@ class Renderer {
   void Transition(plume::RenderTexture* texture, plume::RenderTextureLayout layout);
   void SetTargets(plume::RenderTexture* color, plume::RenderTexture* depth);
   void SetMainLayout();
+  // Records which EDRAM tiles the pass's targets write (`height` rows from the
+  // top). With `check`, first clears the color target's tiles that another
+  // surface wrote since it did.
+  void TrackEdram(const xenos::DeviceState& state, Texture& color, Texture& depth, bool color_written,
+                  bool depth_written, uint32_t height, bool check);
   uint64_t Allocate(const void* data, uint64_t size, uint64_t alignment = 256);
 
   struct GuestBuffer {
@@ -239,6 +244,9 @@ class Renderer {
   std::vector<std::unique_ptr<plume::RenderTextureView>> retired_views_;
   std::vector<std::unique_ptr<plume::RenderFramebuffer>> retired_framebuffers_;
   std::pair<plume::RenderTexture*, plume::RenderTexture*> current_targets_{};
+  // The surface that last wrote each EDRAM tile (5120 bytes). Surfaces at
+  // overlapping EDRAM ranges share memory on the GPU but not here.
+  std::vector<const Texture*> edram_owners_ = std::vector<const Texture*>(2048);
   bool main_layout_bound_ = false;
   std::map<std::string, uint32_t> stats_;
 };

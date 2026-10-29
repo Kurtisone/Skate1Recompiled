@@ -13,6 +13,7 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <set>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -170,13 +171,30 @@ int main(int argc, char** argv) {
   std::printf("%zu events, %zu containers, replaying %zu..%zu on %s\n", events.size(), containers.size(),
               first, last, device->getDescription().name.c_str());
 
-  renderer.BeginFrame();
   uint32_t frontBuffer = 0;
   std::vector<uint32_t> resolveTargets;
+  // REPLAY_REPEAT=N: replays the frame N times, as if the game drew it N
+  // frames in a row (what carries over from frame to frame shows up).
+  const int repeat = getenv("REPLAY_REPEAT") ? std::max(1, atoi(getenv("REPLAY_REPEAT"))) : 1;
+  // REPLAY_SKIP=i,j,...: events to leave out (bisecting).
+  std::set<size_t> skip;
+  if (const char* list = getenv("REPLAY_SKIP")) {
+    for (const char* p = list; *p;) {
+      char* end;
+      const size_t from = strtoul(p, &end, 10), to = *end == '-' ? strtoul(end + 1, &end, 10) : from;
+      for (size_t i = from; i <= to; ++i) skip.insert(i);
+      p = *end ? end + 1 : end;
+    }
+  }
+  for (int pass = 0; pass < repeat; ++pass) {
+  if (pass) renderer.EndFrame();
+  renderer.BeginFrame();
+  resolveTargets.clear();
   const Event* begin = nullptr;  // last BeginVertices
   uint32_t vsMicrocode = 0, vsMicrocodeSize = 0;  // the last vertex IM_LOAD
   for (size_t i = first; i <= last; ++i) {
     const Event& e = events[i];
+    if (skip.count(i)) continue;
     const xenos::DeviceState state{e.device.data()};
     // The packets the call wrote end at the write pointer (device+48).
     for (const Blob& blob : e.blobs) {
@@ -296,6 +314,7 @@ int main(int argc, char** argv) {
       default:
         break;
     }
+  }
   }
   renderer.EndFrame();
 

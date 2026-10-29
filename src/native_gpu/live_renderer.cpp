@@ -355,11 +355,19 @@ void LiveRendererOnCall(uint32_t function, const PPCContext& before, uint32_t re
                         uint32_t packets_start) {
   if (!g_renderer) return;
   const uint32_t packets_end = REX_LOAD_U32(kDevice + 48);
+  // Packets written since the previous hooked call (by other D3D functions
+  // or the game), then by this call. The write pointer points at the last
+  // dword written; a jump to another buffer segment loses the gap.
+  static uint32_t previous_end = 0;
+  if (previous_end && packets_start > previous_end && packets_start - previous_end < 0x10000) {
+    xenos::FindVertexShaderLoad(base + previous_end + 4, packets_start - previous_end, g_vs_microcode,
+                                g_vs_microcode_size);
+  }
   if (packets_end > packets_start && packets_end - packets_start < 0x10000) {
-    // The write pointer points at the last dword written.
     xenos::FindVertexShaderLoad(base + packets_start + 4, packets_end - packets_start, g_vs_microcode,
                                 g_vs_microcode_size);
   }
+  previous_end = packets_end;
   const auto start = std::chrono::steady_clock::now();
   struct Timer {
     std::chrono::steady_clock::time_point start;

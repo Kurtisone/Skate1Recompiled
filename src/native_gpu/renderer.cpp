@@ -3,6 +3,7 @@
 #include "renderer.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -732,6 +733,13 @@ Renderer::Texture& Renderer::CreateSurface(uint64_t key, uint32_t width, uint32_
   return surface;
 }
 
+// The lowest row the D3D viewport covers.
+static uint32_t ViewportBottom(const xenos::DeviceState& state) {
+  const float bottom = state.RegF(xenos::reg::PA_CL_VPORT_YOFFSET) +
+                       std::fabs(state.RegF(xenos::reg::PA_CL_VPORT_YSCALE));
+  return bottom > 0.0f ? uint32_t(std::ceil(bottom)) : 0;
+}
+
 Renderer::Texture& Renderer::GetColorSurface(const xenos::DeviceState& state) {
   const uint32_t surface = state.Reg(xenos::reg::RB_SURFACE_INFO);
   const uint32_t color = state.Reg(xenos::reg::RB_COLOR_INFO);
@@ -749,12 +757,68 @@ Renderer::Texture& Renderer::GetDepthSurface(const xenos::DeviceState& state) {
   return CreateSurface(key, pitch, kMaxSurfaceHeight, RenderFormat::D32_FLOAT_S8_UINT, true);
 }
 
+void Renderer::TrackEdram(const xenos::DeviceState& state, Texture& color, Texture& depth, bool colorWritten,
+                          bool depthWritten, uint32_t height, bool check) {
+  const uint32_t surfaceInfo = state.Reg(xenos::reg::RB_SURFACE_INFO);
+  const uint32_t pitch = std::max(surfaceInfo & 0x3FFF, 1u);
+  const uint32_t msaa = (surfaceInfo >> 16) & 3;
+  height = std::min(height, kMaxSurfaceHeight);
+  // A tile is 80x16 samples of 32 bits (40x16 of 64); 2x MSAA doubles the
+  // rows, 4x the columns too.
+  const auto tiles = [&](uint32_t info, bool wide, auto&& visit) {
+    const uint32_t tileWidth = (wide ? 40 : 80) / (msaa >= 2 ? 2 : 1);
+    const uint32_t tileHeight = 16 / (msaa >= 1 ? 2 : 1);
+    const uint32_t columns = (pitch + tileWidth - 1) / tileWidth;
+    const uint32_t rows = (height + tileHeight - 1) / tileHeight;
+    for (uint32_t row = 0; row < rows; ++row) {
+      for (uint32_t column = 0; column < columns; ++column) {
+        visit((info + row * columns + column) & 2047, column, row, tileWidth, tileHeight);
+      }
+    }
+  };
+  if (colorWritten) {
+    const uint32_t info = state.Reg(xenos::reg::RB_COLOR_INFO);
+    const uint32_t format = (info >> 16) & 0xF;
+    const bool wide = format == 5 || format == 7 || format == 15;  // 64 bits per sample
+    if (check) {
+      // On the GPU those tiles now hold the other surface's data, here this
+      // surface's last contents; passes that keep what is in EDRAM (Skate's
+      // untiled scene path clears depth only, and foliage writes no alpha)
+      // must not get an old frame. Clear them, as the tiled path does.
+      std::vector<RenderRect> stale;
+      tiles(info & 0xFFF, wide, [&](uint32_t tile, uint32_t column, uint32_t row, uint32_t w, uint32_t h) {
+        const Texture* owner = edram_owners_[tile];
+        if (!owner || owner == &color || owner == &depth) return;
+        const int32_t x = int32_t(column * w), y = int32_t(row * h);
+        if (!stale.empty() && stale.back().right == x && stale.back().top == y) {
+          stale.back().right = x + int32_t(w);
+        } else {
+          stale.emplace_back(x, y, x + int32_t(w), y + int32_t(h));
+        }
+      });
+      if (!stale.empty()) {
+        commands_->clearColor(0, RenderColor(0.0f, 0.0f, 0.0f, 0.0f), stale.data(), uint32_t(stale.size()));
+        ++stats_["EDRAM: color target overwritten by another surface"];
+      }
+    }
+    tiles(info & 0xFFF, wide, [&](uint32_t tile, uint32_t, uint32_t, uint32_t, uint32_t) {
+      edram_owners_[tile] = &color;
+    });
+  }
+  if (depthWritten) {
+    tiles(state.Reg(xenos::reg::RB_DEPTH_INFO) & 0xFFF, false,
+          [&](uint32_t tile, uint32_t, uint32_t, uint32_t, uint32_t) { edram_owners_[tile] = &depth; });
+  }
+}
+
 void Renderer::Clear(const ClearCall& call) {
   Texture& color = GetColorSurface(call.state);
   Texture& depth = GetDepthSurface(call.state);
   SetTargets(color.texture.get(), depth.texture.get());
   RenderRect rect(0, 0, int32_t(color.width), int32_t(color.height));
   if (call.has_rect) rect = RenderRect(call.rect[0], call.rect[1], call.rect[2], call.rect[3]);
+  TrackEdram(call.state, color, depth, call.flags & 0xF, call.flags & 0x30,
+             call.has_rect ? uint32_t(std::max(rect.bottom, 0)) : ViewportBottom(call.state), false);
   if (call.flags & 0xF) {
     commands_->clearColor(0, RenderColor(call.color[0], call.color[1], call.color[2], call.color[3]), &rect, 1);
   }
@@ -921,16 +985,37 @@ void Renderer::Draw(const DrawCall& call) {
   std::vector<std::vector<std::pair<uint32_t, uint32_t>>> halfSwaps;
   uint32_t lastStride = 0, lastSlot = 0;
   bool packedNormals = false, halfNormals = false;
-  const uint8_t* microcode = call.vs_microcode ? call.vs_microcode : call.vs_physical + vs->microcode_offset;
-  const size_t microcodeSize = call.vs_microcode ? call.vs_microcode_size
-                                                 : call.vs_physical_size - std::min<size_t>(call.vs_physical_size,
-                                                                                            vs->microcode_offset);
+  // The loaded microcode (IM_LOAD) belongs to this shader if it holds a
+  // fetch for at least one element (same destination register and
+  // components); otherwise it is another shader's (a load we missed) and the
+  // object's own copy is used.
+  bool useLoaded = false;
+  for (const Shader::Element& element : vs->elements) {
+    for (const Shader::Element& other : vs->elements) {
+      const size_t candidate = other.address * 12;
+      if (call.vs_microcode && candidate + 12 <= call.vs_microcode_size &&
+          (xenos::LoadBE32(call.vs_microcode + candidate) & 0x1F) == 0 &&
+          ((xenos::LoadBE32(call.vs_microcode + candidate) >> 12) & 0x3F) == element.dst_register &&
+          (xenos::LoadBE32(call.vs_microcode + candidate + 4) & 0xFFF) == element.dst_swizzle) {
+        useLoaded = true;
+      }
+    }
+  }
+  if (call.vs_microcode && !useLoaded) ++stats_["vertex microcode: IM_LOAD did not match the shader"];
+  if (!useLoaded && !call.vs_physical) {
+    ++stats_["draw skipped: no vertex microcode"];
+    return;
+  }
+  const uint8_t* microcode = useLoaded ? call.vs_microcode : call.vs_physical + vs->microcode_offset;
+  const size_t microcodeSize = useLoaded ? call.vs_microcode_size
+                                         : call.vs_physical_size - std::min<size_t>(call.vs_physical_size,
+                                                                                    vs->microcode_offset);
   for (const Shader::Element& element : vs->elements) {
     // D3D relinks the vertex fetches it loads (registers may move between
     // fetch instructions): use the fetch writing the element's original
     // destination register and components, among the elements' fetch slots.
     size_t at = element.address * 12;
-    if (call.vs_microcode) {
+    if (useLoaded) {
       for (const Shader::Element& other : vs->elements) {
         const size_t candidate = other.address * 12;
         if (candidate + 12 <= microcodeSize &&
@@ -1150,6 +1235,10 @@ void Renderer::Draw(const DrawCall& call) {
   const uint64_t sharedConstants = Allocate(&shared, sizeof(shared));
   const uint64_t pushConstants[] = {upload_address_ + vsConstants, upload_address_ + psConstants,
                                     upload_address_ + sharedConstants};
+
+  TrackEdram(state, color, depth, blend.renderTargetWriteMask != 0,
+             desc.depthWriteEnabled || (desc.stencilEnabled && desc.stencilWriteMask), ViewportBottom(state),
+             true);
 
   // Viewport from the D3D viewport transform (the shaders invert Y).
   const float sx = state.RegF(xenos::reg::PA_CL_VPORT_XSCALE);
