@@ -13,6 +13,10 @@
 REXCVAR_DECLARE(std::string, perf_log_csv);
 #endif
 
+#ifdef SKATE1_NATIVE_GPU
+#include "native_gpu/native_gpu.h"
+#endif
+
 // src/capture_debug.cpp (capture_guest_output_seconds).
 void StartGuestOutputCapture(rex::Runtime* runtime);
 
@@ -38,7 +42,12 @@ class Skate1App : public rex::ReXApp {
   }
   // void OnPreSetup(rex::RuntimeConfig& config) override {}
   // void OnLoadXexImage(std::string& xex_image) override {}
-  void OnPostSetup() override { StartGuestOutputCapture(runtime()); }
+  void OnPostSetup() override {
+    StartGuestOutputCapture(runtime());
+#ifdef SKATE1_NATIVE_GPU
+    StartNativeGpu();
+#endif
+  }
   // void OnCreateDialogs(rex::ui::ImGuiDrawer* drawer) override {}
   // void OnShutdown() override {}
   // Portable layout: a relative (or missing) game_data_root resolves next to

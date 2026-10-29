@@ -28,6 +28,14 @@ set(SKATE1_SOURCES
     src/scene_tiling.cpp
 )
 
+# Native D3D layer (docs/native_d3d.md): Unleashed Recompiled's renderer on
+# plume. Work in progress, off by default.
+option(SKATE1_NATIVE_GPU "Build the native D3D layer" OFF)
+if(SKATE1_NATIVE_GPU)
+    add_subdirectory(third_party/plume)
+    list(APPEND SKATE1_SOURCES src/native_gpu/native_gpu.cpp)
+endif()
+
 # Exe/window icon. The icon is the game's cover art, so it is not committed:
 # drop your own src/skate1.ico in place to embed it.
 if(WIN32 AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/skate1.ico")
@@ -44,6 +52,15 @@ endif()
 # Since SDK 0.10 the Xenos GPU emulation is a runtime-loaded plugin; this stages
 # rexgpu-xenos next to the exe (the runtime config selects it via gpu_plugin).
 rexglue_setup_target(skate1 GPU_PLUGINS xenos)
+
+if(SKATE1_NATIVE_GPU)
+    target_compile_definitions(skate1 PRIVATE SKATE1_NATIVE_GPU=1)
+    target_link_libraries(skate1 PRIVATE plume)
+    # plume's Vulkan backend presents to Xlib windows on Linux.
+    if(UNIX AND NOT APPLE AND NOT ANDROID)
+        target_link_libraries(skate1 PRIVATE X11)
+    endif()
+endif()
 
 # The SDK writes librexruntime into its own out/<platform> folder, but the host
 # only looks next to itself (@loader_path / $ORIGIN). Windows stages it via

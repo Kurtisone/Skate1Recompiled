@@ -22,7 +22,7 @@ if [[ "${1:-}" != "--in-container" ]]; then
   if ! "$CONTAINER" image exists "$IMAGE" 2>/dev/null; then
     "$CONTAINER" build -t "$IMAGE" -f "$ROOT/tools/steamdeck/Containerfile" "$ROOT/tools/steamdeck"
   fi
-  exec "$CONTAINER" run --rm --userns=keep-id -v "$ROOT:/src:Z" -w /src -e TRACY="${TRACY:-0}" -e PERF="${PERF:-0}" "$IMAGE" \
+  exec "$CONTAINER" run --rm --userns=keep-id -v "$ROOT:/src:Z" -w /src -e TRACY="${TRACY:-0}" -e PERF="${PERF:-0}" -e NATIVE="${NATIVE:-0}" "$IMAGE" \
     bash tools/steamdeck/build.sh --in-container "$@"
 fi
 shift
@@ -75,7 +75,9 @@ if [[ ! -f generated/rexglue.cmake ]]; then
   LD_LIBRARY_PATH="$(dirname "$REXGLUE")" "$REXGLUE" --force codegen skate1_manifest.toml
 fi
 
-cmake -S . -B "$GAME_BUILD" -G Ninja "${CONFIG_ARGS[@]}" \
+NATIVE_ARGS=(-DSKATE1_NATIVE_GPU=OFF)
+[[ "${NATIVE:-0}" == 1 ]] && NATIVE_ARGS=(-DSKATE1_NATIVE_GPU=ON)
+cmake -S . -B "$GAME_BUILD" -G Ninja "${CONFIG_ARGS[@]}" "${NATIVE_ARGS[@]}" \
   -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
   "-DCMAKE_C_FLAGS=$ARCH_FLAGS" "-DCMAKE_CXX_FLAGS=$ARCH_FLAGS"
 cmake --build "$GAME_BUILD" --target skate1
