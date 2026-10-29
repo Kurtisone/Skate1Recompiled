@@ -42,3 +42,19 @@ written state fit, ? = guess.
 
 Objects: vertex/index buffer +24 address, +28 size; texture fetch constant
 (6 dwords) at texture+28.
+
+Shaders (probed 2026-10-29):
+- Container magic: `0x102A1100` = pixel shader, `0x102A1101` = vertex shader
+  (XenosRecomp: `isPixelShader = (flags & 1) == 0`; the dump file names in
+  out/pc-bench/shaders have them the wrong way round).
+- `82CBDF20(container, &out)` creates in place and returns the container;
+  `82CBFEC0(container, &part, &size)` splits it into parts (XG);
+  `82CC4470(container, other, size, &out)` returns 0 (pairs shaders?).
+- SetPixelShader `82CBDFE8(device, object)`: object type 7, microcode
+  physical address at +24, the shader's container right after the object
+  header at +40.
+- SetVertexShader `82CBE2E8(device, object, n, ?, microcode physical)`:
+  object type 6, microcode at +32, container pointer at +60.
+- So container -> XXH3 over virtualSize + physicalSize -> XenosRecomp cache
+  entry; XenosRecomp also finds containers embedded in any file, so the game
+  archives can be scanned for all shaders.
