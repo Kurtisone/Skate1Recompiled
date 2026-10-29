@@ -205,7 +205,11 @@ void WritePpm(const std::string& path, const std::vector<uint8_t>& rgba, uint32_
   FILE* f = std::fopen(path.c_str(), "wb");
   if (!f) return;
   std::fprintf(f, "P6\n%u %u\n255\n", width, height);
-  for (size_t p = 0; p < size_t(width) * height; ++p) std::fwrite(&rgba[p * 4], 1, 3, f);
+  // Resolved 8_8_8_8 textures are in memory order (blue first).
+  for (size_t p = 0; p < size_t(width) * height; ++p) {
+    const uint8_t rgb[3] = {rgba[p * 4 + 2], rgba[p * 4 + 1], rgba[p * 4]};
+    std::fwrite(rgb, 1, 3, f);
+  }
   std::fclose(f);
 }
 
@@ -283,6 +287,7 @@ void LiveRendererOnCall(uint32_t function, const PPCContext& before, uint32_t re
       call.has_rect = ReadRect(base, before.r5.u32, call.rect);
       ReadColor(base, before.r6.u32, call.color);
       call.depth = float(before.f1.f64);
+      call.stencil = before.r7.u32;
       g_renderer->Clear(call);
       break;
     }
@@ -292,6 +297,7 @@ void LiveRendererOnCall(uint32_t function, const PPCContext& before, uint32_t re
       native_gpu::ClearCall call;
       call.state = state;
       call.flags = 0x30;
+      call.stencil = before.r8.u32;
       call.has_rect = true;
       call.rect[0] = call.rect[1] = INT32_MAX;
       call.rect[2] = call.rect[3] = INT32_MIN;

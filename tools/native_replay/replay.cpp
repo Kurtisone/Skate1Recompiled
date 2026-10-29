@@ -235,6 +235,7 @@ int main(int argc, char** argv) {
           for (int c = 0; c < 4; ++c) call.color[c] = xenos::LoadBEFloat(&color->data[4 * c]);
         }
         call.depth = e.f1;
+        call.stencil = e.regs[4];  // r7
         renderer.Clear(call);
         break;
       }
@@ -247,6 +248,7 @@ int main(int argc, char** argv) {
         const Blob* rects = e.FindBlob(e.regs[3]);
         if (!rects || !e.regs[2]) break;
         call.flags = 0x30;
+        call.stencil = e.regs[5];  // r8
         call.has_rect = true;
         call.rect[0] = call.rect[1] = INT32_MAX;
         for (uint32_t t = 0; t < e.regs[2] && 16 * t + 16 <= rects->data.size(); ++t) {
@@ -307,7 +309,11 @@ int main(int argc, char** argv) {
   }
   FILE* f = std::fopen(argv[3], "wb");
   std::fprintf(f, "P6\n%u %u\n255\n", width, height);
-  for (size_t p = 0; p < size_t(width) * height; ++p) std::fwrite(&rgba[p * 4], 1, 3, f);
+  // Resolved 8_8_8_8 textures are in memory order (blue first).
+  for (size_t p = 0; p < size_t(width) * height; ++p) {
+    const uint8_t rgb[3] = {rgba[p * 4 + 2], rgba[p * 4 + 1], rgba[p * 4]};
+    std::fwrite(rgb, 1, 3, f);
+  }
   std::fclose(f);
   std::printf("front buffer %08X (%ux%u) -> %s\n", frontBuffer, width, height, argv[3]);
   return 0;

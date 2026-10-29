@@ -55,6 +55,7 @@ struct ClearCall {
   int32_t rect[4] = {};  // x1, y1, x2, y2
   float color[4] = {};
   float depth = 1.0f;    // the Z argument (f1)
+  uint32_t stencil = 0;  // the stencil argument
 };
 
 // Resolve(flags, source rect, texture, dest point, ...): flags & 4 = depth,
@@ -111,7 +112,8 @@ class Renderer {
   // Waits for all submitted frames.
   void WaitIdle();
 
-  // Reads back a resolved texture (RGBA8) by its guest address.
+  // Reads back a resolved texture (RGBA8, or R16G16 as 4 bytes per texel) by
+  // its guest address.
   bool ReadResolved(uint32_t address, std::vector<uint8_t>& rgba, uint32_t& width,
                     uint32_t& height);
 
@@ -135,7 +137,15 @@ class Renderer {
     uint32_t width = 0, height = 0;
     uint32_t dimension = 1;  // 1 2D, 2 3D, 3 cube
     uint32_t index = 0;      // in its descriptor heap
+    // Depth surfaces: a view of the stencil aspect, for depth resolves.
+    std::unique_ptr<plume::RenderTextureView> stencil_view;
+    uint32_t stencil_index = 0;
+    // Resolved textures: views with the swizzles fetches asked for, and
+    // their heap indices.
+    std::unordered_map<uint32_t, std::pair<std::unique_ptr<plume::RenderTextureView>, uint32_t>>
+        swizzled_views;
   };
+  uint32_t ResolvedIndex(Texture& texture, uint32_t swizzle);
 
   Shader* GetShader(uint64_t key);
   Texture* GetGuestTexture(const xenos::TextureFetch& fetch);

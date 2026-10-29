@@ -49,7 +49,17 @@ struct ResolvePushConstants {
   float scale;
   int32_t offset_x;
   int32_t offset_y;
+  uint32_t stencil_index;
 };
+
+RenderStencilFaceDesc StencilFace(uint32_t func, uint32_t fail, uint32_t zpass, uint32_t zfail) {
+  RenderStencilFaceDesc face;
+  face.compareFunction = RenderComparisonFunction(func + 1);
+  face.failOp = RenderStencilOp(fail + 1);
+  face.passOp = RenderStencilOp(zpass + 1);
+  face.depthFailOp = RenderStencilOp(zfail + 1);
+  return face;
+}
 
 // XenosRecomp's USAGE_LOCATIONS: vertex input location of (usage, index).
 int32_t UsageLocation(uint32_t usage, uint32_t index) {
@@ -431,7 +441,7 @@ void Renderer::EndFrame(uint32_t present_address) {
     commands_->setGraphicsDescriptorSet(texture_2d_set_.get(), 0);
     main_layout_bound_ = false;
     commands_->setPipeline(pipeline.get());
-    ResolvePushConstants push{source.index, 0, 1.0f, 0, 0};
+    ResolvePushConstants push{source.index, 0, 1.0f, 0, 0, 0};
     commands_->setGraphicsPushConstants(0, &push);
     RenderViewport viewport(0.0f, 0.0f, float(present_width_), float(present_height_));
     RenderRect scissor(0, 0, int32_t(present_width_), int32_t(present_height_));
@@ -501,6 +511,22 @@ Renderer::Shader* Renderer::GetShader(uint64_t key) {
     }
   }
   return info.entry ? &info : nullptr;
+}
+
+uint32_t Renderer::ResolvedIndex(Texture& texture, uint32_t swizzle) {
+  if (swizzle == 0x688) return texture.index;  // xyzw (0, 1, 2, 3)
+  auto& [view, index] = texture.swizzled_views[swizzle];
+  if (!view) {
+    RenderTextureViewDesc desc;
+    desc.format = texture.format;
+    desc.dimension = RenderTextureViewDimension::TEXTURE_2D;
+    desc.mipLevels = 1;
+    desc.componentMapping = SwizzleMapping(swizzle);
+    view = texture.texture->createTextureView(desc);
+    if (!index) index = next_2d_++;
+    texture_2d_set_->setTexture(index, texture.texture.get(), RenderTextureLayout::SHADER_READ, view.get());
+  }
+  return index;
 }
 
 const RenderBuffer* Renderer::GetGuestBuffer(uint32_t address, uint32_t size, uint64_t layout,
@@ -658,6 +684,23 @@ Renderer::Texture& Renderer::CreateSurface(uint64_t key, uint32_t width, uint32_
   surface.index = next_2d_++;
   texture_2d_set_->setTexture(surface.index, surface.texture.get(), RenderTextureLayout::SHADER_READ,
                               surface.view.get());
+  if (depth) {
+    // plume views a depth target's depth aspect only: swap in a stencil
+    // aspect view under a plume view object.
+    surface.stencil_view = surface.texture->createTextureView(view);
+    auto* vulkanView = static_cast<VulkanTextureView*>(surface.stencil_view.get());
+    VkDevice vkDevice = static_cast<VulkanDevice*>(device_)->vk;
+    vkDestroyImageView(vkDevice, vulkanView->vk, nullptr);
+    VkImageViewCreateInfo info{VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
+    info.image = static_cast<VulkanTexture*>(surface.texture.get())->vk;
+    info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    info.format = VK_FORMAT_D32_SFLOAT_S8_UINT;
+    info.subresourceRange = {VK_IMAGE_ASPECT_STENCIL_BIT, 0, 1, 0, 1};
+    vkCreateImageView(vkDevice, &info, nullptr, &vulkanView->vk);
+    surface.stencil_index = next_2d_++;
+    texture_2d_set_->setTexture(surface.stencil_index, surface.texture.get(), RenderTextureLayout::SHADER_READ,
+                                surface.stencil_view.get());
+  }
   return surface;
 }
 
@@ -675,7 +718,7 @@ Renderer::Texture& Renderer::GetDepthSurface(const xenos::DeviceState& state) {
   const uint32_t depth = state.Reg(xenos::reg::RB_DEPTH_INFO);
   const uint32_t pitch = std::max(surface & 0x3FFF, 1u);
   const uint64_t key = uint64_t(depth & 0xFFF) | uint64_t(pitch) << 16 | 1ull << 63;
-  return CreateSurface(key, pitch, kMaxSurfaceHeight, RenderFormat::D32_FLOAT, true);
+  return CreateSurface(key, pitch, kMaxSurfaceHeight, RenderFormat::D32_FLOAT_S8_UINT, true);
 }
 
 void Renderer::Clear(const ClearCall& call) {
@@ -687,9 +730,11 @@ void Renderer::Clear(const ClearCall& call) {
   if (call.flags & 0xF) {
     commands_->clearColor(0, RenderColor(call.color[0], call.color[1], call.color[2], call.color[3]), &rect, 1);
   }
-  if (call.flags & 0x10) {
-    // The Z argument: RB_DEPTH_CLEAR in the shadow only follows resolve clears.
-    commands_->clearDepthStencil(true, false, call.depth, 0, &rect, 1);
+  if (call.flags & 0x30) {
+    // The Z and stencil arguments: RB_DEPTH_CLEAR in the shadow only follows
+    // resolve clears.
+    commands_->clearDepthStencil(call.flags & 0x10, call.flags & 0x20, call.depth, call.stencil & 0xFF,
+                                 &rect, 1);
   }
   ++stats_["clears"];
 }
@@ -714,13 +759,17 @@ void Renderer::Resolve(const ResolveCall& call) {
   const uint32_t width = (rect[0] == 0 && destPitch == ((rectWidth + 31) & ~31u)) ? rectWidth : destPitch;
   const uint32_t height = uint32_t(y) + destHeight;
   RenderFormat format = source.format;
-  ResolvePushConstants push{source.index, 0, 1.0f, rect[0] - x, rect[1] - y};
+  ResolvePushConstants push{source.index, 0, 1.0f, rect[0] - x, rect[1] - y, source.stencil_index};
   if (depth) {
     format = RenderFormat::R8G8B8A8_UNORM;
     push.mode = 1;
+  } else if (format == RenderFormat::R8G8B8A8_UNORM) {
+    push.mode = 3;
   } else if (format == RenderFormat::R16G16_FLOAT) {
-    format = RenderFormat::R16G16_SNORM;  // read as normalized 16_16
-    push.scale = 1.0f / 32.0f;
+    // A resolve converts: the EDRAM value (fixed point, -32..32) is written
+    // in the destination format, here the unsigned normalized 16_16 the
+    // game fetches it as (shadow depth and mask in 0..1).
+    format = RenderFormat::R16G16_UNORM;
   }
 
   Texture& dest = resolved_[address];
@@ -739,6 +788,7 @@ void Renderer::Resolve(const ResolveCall& call) {
       layouts_.erase(dest.texture.get());
       retired_textures_.push_back(std::move(dest.texture));
       retired_views_.push_back(std::move(dest.view));
+      for (auto& [swizzle, entry] : dest.swizzled_views) retired_views_.push_back(std::move(entry.first));
     }
     dest.texture = device_->createTexture(RenderTextureDesc::ColorTarget(width, height, format));
     dest.format = format;
@@ -795,6 +845,7 @@ void Renderer::Resolve(const ResolveCall& call) {
     const uint32_t color = call.state.Reg(0x231E);  // RB_COLOR_CLEAR (8_8_8_8)
     for (int c = 0; c < 4; ++c) clear.color[c] = float((color >> (8 * c)) & 0xFF) / 255.0f;
     clear.depth = call.clear_depth;
+    clear.flags |= (call.flags & 0x200) ? 0x20 : 0;
     Clear(clear);
   }
 }
@@ -926,7 +977,7 @@ void Renderer::Draw(const DrawCall& call) {
     const xenos::TextureFetch t = xenos::DecodeTextureFetch(state, slot);
     if (!t.valid) continue;
     if (auto resolved = resolved_.find(t.address); resolved != resolved_.end()) {
-      shared.texture2DIndices[slot] = resolved->second.index;
+      shared.texture2DIndices[slot] = ResolvedIndex(resolved->second, t.swizzle);
     } else if (Texture* texture = GetGuestTexture(t)) {
       (texture->dimension == 3   ? shared.textureCubeIndices
        : texture->dimension == 2 ? shared.texture3DIndices
@@ -952,6 +1003,21 @@ void Renderer::Draw(const DrawCall& call) {
   desc.depthEnabled = (depthControl >> 1) & 1;
   desc.depthWriteEnabled = (depthControl >> 2) & 1;
   desc.depthFunction = RenderComparisonFunction(((depthControl >> 4) & 7) + 1);
+  // Stencil (RB_DEPTHCONTROL bit 0; front func/fail/zpass/zfail at 8/11/14/17,
+  // back at 20/23/26/29 when bit 7; RB_STENCILREFMASK ref/mask/writemask).
+  desc.stencilEnabled = depthControl & 1;
+  if (desc.stencilEnabled) {
+    const uint32_t refMask = state.Reg(0x210D);
+    desc.stencilReference = refMask & 0xFF;
+    desc.stencilReadMask = (refMask >> 8) & 0xFF;
+    desc.stencilWriteMask = (refMask >> 16) & 0xFF;
+    desc.stencilFrontFace = StencilFace((depthControl >> 8) & 7, (depthControl >> 11) & 7,
+                                        (depthControl >> 14) & 7, (depthControl >> 17) & 7);
+    desc.stencilBackFace = (depthControl >> 7) & 1
+                               ? StencilFace((depthControl >> 20) & 7, (depthControl >> 23) & 7,
+                                             (depthControl >> 26) & 7, (depthControl >> 29) & 7)
+                               : desc.stencilFrontFace;
+  }
   desc.depthClipEnabled = true;
   desc.primitiveTopology = topology;
   desc.cullMode = RenderCullMode::NONE;
@@ -1049,7 +1115,10 @@ void Renderer::Draw(const DrawCall& call) {
 
 bool Renderer::ReadResolved(uint32_t address, std::vector<uint8_t>& rgba, uint32_t& width, uint32_t& height) {
   auto it = resolved_.find(address & 0xFFFFF000);
-  if (it == resolved_.end() || it->second.format != RenderFormat::R8G8B8A8_UNORM) return false;
+  if (it == resolved_.end() || (it->second.format != RenderFormat::R8G8B8A8_UNORM &&
+                                it->second.format != RenderFormat::R16G16_UNORM)) {
+    return false;
+  }
   Texture& texture = it->second;
   width = texture.width;
   height = texture.height;
