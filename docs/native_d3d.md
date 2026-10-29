@@ -63,6 +63,17 @@ Porting plan:
 5. Shader cache: XenosRecomp (branch `skate1`) over the dumped containers,
    then over all shaders in the game's archives.
 
+## Finding (2026-10-29): Skate creates no resources through D3D
+
+A trace from boot through loading shows no CreateTexture,
+CreateVertexBuffer, Lock or Unlock: like other EA/RenderWare games, Skate
+fills its texture and buffer headers itself and passes them straight to
+SetTexture / SetStreamSource. Unleashed's resource half (GuestTexture etc.
+created by hooked CreateTexture, uploads at Unlock) does not apply; textures
+and buffers would have to be tracked by guest address with write detection,
+as the emulated path does. The native layer's gain is then mostly the
+per-draw translation cost, which scene_msaa_off already cut by ~3x.
+
 ## Design (2026-10-29)
 
 D3D keeps the whole draw state in its device shadow (registers in Xenos
