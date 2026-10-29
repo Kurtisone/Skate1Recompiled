@@ -282,6 +282,7 @@ void LiveRendererOnCall(uint32_t function, const PPCContext& before, uint32_t re
       call.flags = before.r4.u32;
       call.has_rect = ReadRect(base, before.r5.u32, call.rect);
       ReadColor(base, before.r6.u32, call.color);
+      call.depth = float(before.f1.f64);
       g_renderer->Clear(call);
       break;
     }
@@ -305,6 +306,7 @@ void LiveRendererOnCall(uint32_t function, const PPCContext& before, uint32_t re
         call.flags |= 0xF;
         ReadColor(base, before.r7.u32, call.color);
       }
+      call.depth = float(before.f1.f64);  // ClearZ
       g_renderer->Clear(call);
       break;
     }
@@ -318,6 +320,7 @@ void LiveRendererOnCall(uint32_t function, const PPCContext& before, uint32_t re
         call.dest_x = int32_t(REX_LOAD_U32(before.r7.u32));
         call.dest_y = int32_t(REX_LOAD_U32(before.r7.u32 + 4));
       }
+      call.clear_depth = float(before.f1.f64);  // ClearZ
       g_renderer->Resolve(call);
       if (!(call.flags & 4)) g_front_buffer = state.Reg(0x2319);  // RB_COPY_DEST_BASE
       break;

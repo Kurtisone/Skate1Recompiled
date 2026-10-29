@@ -54,6 +54,7 @@ struct ClearCall {
   bool has_rect = false;
   int32_t rect[4] = {};  // x1, y1, x2, y2
   float color[4] = {};
+  float depth = 1.0f;    // the Z argument (f1)
 };
 
 // Resolve(flags, source rect, texture, dest point, ...): flags & 4 = depth,
@@ -67,6 +68,7 @@ struct ResolveCall {
   bool has_dest_point = false;
   int32_t dest_x = 0;
   int32_t dest_y = 0;
+  float clear_depth = 1.0f;  // ClearZ (f1), for flags 0x200
 };
 
 // Tells the renderer when the game writes guest memory it has converted

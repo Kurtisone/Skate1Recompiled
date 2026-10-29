@@ -78,6 +78,9 @@ RenderFormat RawVertexFormat(uint32_t format) {
     case k_32_32_FLOAT: return RenderFormat::R32G32_UINT;
     case k_32_32_32_FLOAT: return RenderFormat::R32G32B32_UINT;
     case k_32_32_32_32_FLOAT: return RenderFormat::R32G32B32A32_UINT;
+    // Half floats, converted by XenosRecomp with SPEC_CONSTANT_HALF_NORMAL.
+    case k_16_16_FLOAT: return RenderFormat::R16G16_UINT;
+    case k_16_16_16_16_FLOAT: return RenderFormat::R16G16B16A16_UINT;
     default: return RenderFormat::UNKNOWN;
   }
 }
@@ -685,8 +688,8 @@ void Renderer::Clear(const ClearCall& call) {
     commands_->clearColor(0, RenderColor(call.color[0], call.color[1], call.color[2], call.color[3]), &rect, 1);
   }
   if (call.flags & 0x10) {
-    const uint32_t clear = call.state.Reg(0x231D);  // RB_DEPTH_CLEAR: depth << 8 | stencil
-    commands_->clearDepthStencil(true, false, float(clear >> 8) / float(0xFFFFFF), 0, &rect, 1);
+    // The Z argument: RB_DEPTH_CLEAR in the shadow only follows resolve clears.
+    commands_->clearDepthStencil(true, false, call.depth, 0, &rect, 1);
   }
   ++stats_["clears"];
 }
@@ -791,6 +794,7 @@ void Renderer::Resolve(const ResolveCall& call) {
     clear.flags = ((call.flags & 0x100) ? 0x1 : 0) | ((call.flags & 0x200) ? 0x10 : 0);
     const uint32_t color = call.state.Reg(0x231E);  // RB_COLOR_CLEAR (8_8_8_8)
     for (int c = 0; c < 4; ++c) clear.color[c] = float((color >> (8 * c)) & 0xFF) / 255.0f;
+    clear.depth = call.clear_depth;
     Clear(clear);
   }
 }
@@ -837,7 +841,7 @@ void Renderer::Draw(const DrawCall& call) {
   // halves are put back in order.
   std::vector<std::vector<std::pair<uint32_t, uint32_t>>> halfSwaps;
   uint32_t lastStride = 0, lastSlot = 0;
-  bool packedNormals = false;
+  bool packedNormals = false, halfNormals = false;
   for (const Shader::Element& element : vs->elements) {
     const size_t at = vs->microcode_offset + element.address * 12;
     if (at + 12 > call.vs_physical_size) {
@@ -859,9 +863,15 @@ void Renderer::Draw(const DrawCall& call) {
     const bool raw = IsRawUsage(element.usage);
     const RenderFormat format = raw ? RawVertexFormat(fetch.format) : VertexFormat(fetch, element.usage);
     if (raw && fetch.format == xenos::k_10_11_11) packedNormals = true;
+    if (raw && (fetch.format == xenos::k_16_16_FLOAT || fetch.format == xenos::k_16_16_16_16_FLOAT)) {
+      halfNormals = true;
+    }
     const int32_t location = UsageLocation(element.usage, element.usage_index);
     if (format == RenderFormat::UNKNOWN || location < 0) {
-      ++stats_[location < 0 ? "vertex element without a location" : "vertex element format"];
+      ++stats_[(location < 0 ? "vertex element without a location: usage " : "vertex element format: usage ") +
+               std::to_string(element.usage) + "." + std::to_string(element.usage_index) + " format " +
+               std::to_string(fetch.format) + (fetch.is_signed ? " signed" : "") +
+               (fetch.is_integer ? " integer" : "")];
       continue;
     }
     uint32_t slot = 0;
@@ -961,6 +971,7 @@ void Renderer::Draw(const DrawCall& call) {
                          blend.blendOpAlpha == RenderBlendOperation::ADD);
   blend.renderTargetWriteMask = uint8_t(state.Reg(xenos::reg::RB_COLOR_MASK) & 0xF);
   uint32_t specConstants = packedNormals ? 1 : 0;  // SPEC_CONSTANT_R11G11B10_NORMAL
+  if (halfNormals) specConstants |= 1 << 5;          // SPEC_CONSTANT_HALF_NORMAL
   if ((colorControl >> 3) & 1) specConstants |= 2;  // SPEC_CONSTANT_ALPHA_TEST
   RenderSpecConstant spec(0, specConstants);
   desc.specConstants = &spec;

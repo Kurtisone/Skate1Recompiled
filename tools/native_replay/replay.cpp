@@ -51,6 +51,7 @@ struct Event {
   uint32_t function;
   uint32_t regs[8];  // r3..r10
   uint32_t result;
+  float f1 = 1.0f;  // version 2
   uint64_t vs_key;
   uint64_t ps_key;
   std::vector<uint8_t> device;
@@ -73,7 +74,8 @@ std::vector<Event> ReadCapture(const std::string& path) {
     std::memcpy(&value, &data[pos], 4);
     return value;
   };
-  if (data.size() < 16 || std::memcmp(data.data(), "SK1C", 4) || u32(4) != 1) {
+  const uint32_t version = data.size() >= 16 ? u32(4) : 0;
+  if (data.size() < 16 || std::memcmp(data.data(), "SK1C", 4) || version < 1 || version > 2) {
     std::fprintf(stderr, "%s: not a frame capture\n", path.c_str());
     std::exit(1);
   }
@@ -85,10 +87,12 @@ std::vector<Event> ReadCapture(const std::string& path) {
     e.function = u32(pos + 4);
     std::memcpy(e.regs, &data[pos + 8], 32);
     e.result = u32(pos + 40);
-    std::memcpy(&e.vs_key, &data[pos + 48], 8);
-    std::memcpy(&e.ps_key, &data[pos + 56], 8);
-    const uint32_t blob_count = u32(pos + 64);
-    pos += 68;
+    const size_t extra = version >= 2 ? 4 : 0;
+    if (extra) std::memcpy(&e.f1, &data[pos + 48], 4);
+    std::memcpy(&e.vs_key, &data[pos + 48 + extra], 8);
+    std::memcpy(&e.ps_key, &data[pos + 56 + extra], 8);
+    const uint32_t blob_count = u32(pos + 64 + extra);
+    pos += 68 + extra;
     e.device.assign(data.begin() + pos, data.begin() + pos + snapshot);
     pos += snapshot;
     for (uint32_t i = 0; i < blob_count; ++i) {
@@ -198,15 +202,15 @@ int main(int argc, char** argv) {
           call.primitive = e.regs[1];
           if (e.function == kDrawIndexed) {
             // DrawIndexedVertices(device, prim, base vertex, start index, count):
-            // the index buffer object (+0 bit 31 = 32-bit, +24 data) and the indices.
+            // the index buffer object (+0 bit 31 = 32-bit, +24 data in the
+            // physical heap, +28 size).
             call.base_vertex = e.regs[2];
             call.start = e.regs[3];
             call.count = e.regs[4];
             const Blob* object = e.FindBlob(state.U32(xenos::device::kIndexBuffer));
-            const Blob* indices = object ? e.FindBlob(xenos::LoadBE32(object->data.data() + 24)) : nullptr;
-            if (!indices) break;
-            call.indices = indices->data.data();
-            call.indices_size = uint32_t(indices->data.size());
+            if (!object) break;
+            call.indices_address = xenos::LoadBE32(object->data.data() + 24) & 0x1FFFFFFF;
+            call.indices_size = xenos::LoadBE32(object->data.data() + 28);
             call.indices_32bit = xenos::LoadBE32(object->data.data()) >> 31;
           } else {
             // DrawVertices(device, prim, start vertex, count).
@@ -230,6 +234,7 @@ int main(int argc, char** argv) {
         if (const Blob* color = e.FindBlob(e.regs[3])) {
           for (int c = 0; c < 4; ++c) call.color[c] = xenos::LoadBEFloat(&color->data[4 * c]);
         }
+        call.depth = e.f1;
         renderer.Clear(call);
         break;
       }
@@ -254,6 +259,7 @@ int main(int argc, char** argv) {
           call.flags |= 0xF;
           for (int c = 0; c < 4; ++c) call.color[c] = xenos::LoadBEFloat(&color->data[4 * c]);
         }
+        call.depth = e.f1;
         renderer.Clear(call);
         break;
       }
@@ -268,6 +274,7 @@ int main(int argc, char** argv) {
           call.dest_x = int32_t(xenos::LoadBE32(&point->data[0]));
           call.dest_y = int32_t(xenos::LoadBE32(&point->data[4]));
         }
+        call.clear_depth = e.f1;
         renderer.Resolve(call);
         resolveTargets.push_back(state.Reg(0x2319) & 0xFFFFF000);
         if (!(call.flags & 4)) frontBuffer = state.Reg(0x2319);

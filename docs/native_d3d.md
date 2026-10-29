@@ -142,6 +142,21 @@ point; the final composite grades through a 32^3 3D LUT. Missing: shadows
 (16_16 shadow map resolves), mips, integer vertex bytes as floats
 (skinning), then the in-game path behind native_gpu.
 
+In game (2026-10-29): native_gpu_render feeds the renderer live from the
+D3D hooks; native_gpu_present shows its frames through the SDK's native
+guest-output hook (GPU-packed A2B10G10R10 read back and copied into the
+presenter's image); the SDK's gpu_skip_guest_draws keeps the GPU command
+thread on fences/interrupts/swaps only. Two frames in flight; textures and
+vertex/index buffers converted once and re-converted when the game writes
+them (physical write watching). NATIVE=1 tools/steamdeck/build.sh packages
+it (tools/steamdeck/native-overrides.toml). PC bench, suburbs while
+pushing: 37 FPS native vs 26 emulated (no cap); GPU command thread 410-520
+-> 78 ms/s. Findings: ClearF's Z is its f1 argument (RB_DEPTH_CLEAR only
+follows resolve clears; capture format v2 records f1); integer vertex
+components read as floats need USCALED (plume patch); half-float normals
+need XenosRecomp's SPEC_CONSTANT_HALF_NORMAL. Missing: shadows, mips,
+10_11_11 texcoords, memexport, async renderer thread.
+
 Milestone B: replay one captured frame offscreen with plume and save it next
 to the emulated frame on the headless benchmark for comparison.
 

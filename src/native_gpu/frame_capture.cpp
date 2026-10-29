@@ -12,9 +12,9 @@
 // for vertex/index buffers and textures. tools/d3d/capture.py reads it; the
 // native renderer is developed against it offline (milestone B).
 //
-// Format (host little-endian): "SK1C", version, device address, snapshot
-// size; then per event "EVNT", function address, r3..r10, result, lr,
-// vertex and pixel shader keys, blob count, the device snapshot, and each
+// Format (host little-endian): "SK1C", version (2), device address, snapshot
+// size; then per event "EVNT", function address, r3..r10, result, lr, f1
+// (float), vertex and pixel shader keys, blob count, the device snapshot, and each
 // blob as address, size, bytes; "DONE" at the end.
 
 #include "frame_capture.h"
@@ -111,6 +111,8 @@ void RecordEvent(uint32_t function, const PPCContext& ctx, uint8_t* base, uint32
   Write(regs, sizeof(regs));
   Write32(result);
   Write32(uint32_t(ctx.lr));
+  const float f1 = float(ctx.f1.f64);  // ClearF / Resolve / BeginTiling Z
+  Write(&f1, 4);
   const uint64_t vs = ShaderKey(base, 12688, false);
   const uint64_t ps = ShaderKey(base, 12684, true);
   Write(&vs, 8);
@@ -169,7 +171,7 @@ void FrameCaptureOnSwap(const PPCContext& ctx, uint8_t* base) {
       return;
     }
     Write("SK1C", 4);
-    Write32(1);
+    Write32(2);
     Write32(kDevice);
     Write32(kSnapshotSize);
     g_state = State::kCapturing;

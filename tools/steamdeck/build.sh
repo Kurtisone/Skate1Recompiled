@@ -11,6 +11,9 @@
 #   TRACY=1 tools/steamdeck/build.sh    # profiling build into out/steamdeck-tracy/skate1
 #                                       # (connect the Tracy 0.13.1 profiler to the Deck)
 #   PERF=1 tools/steamdeck/build.sh     # perf counter build into out/steamdeck-perf/skate1
+#   NATIVE=1 tools/steamdeck/build.sh   # native D3D layer on (docs/native_d3d.md), into
+#                                       # out/steamdeck-native/skate1; needs
+#                                       # out/native/shader_cache.cpp (tools/d3d/build_shader_cache.sh)
 #                                       # (gpu_cpu_profile = true logs the GPU thread's frame)
 set -euo pipefail
 
@@ -53,6 +56,10 @@ elif [[ "${PERF:-0}" == 1 ]]; then
   PACKAGE=out/steamdeck-perf/skate1
   CONFIG_ARGS=(-DCMAKE_BUILD_TYPE=RelWithDebInfo -DREXGLUE_ENABLE_TRACY=OFF
     -DREXGLUE_ENABLE_PERF_COUNTERS=ON "${RD_FLAGS[@]}")
+elif [[ "${NATIVE:-0}" == 1 ]]; then
+  # Same SDK build as the play package; its own game build and package.
+  GAME_BUILD=out/steamdeck-native/build
+  PACKAGE=out/steamdeck-native/skate1
 fi
 
 cmake -S third_party/rexglue-sdk -B "$SDK_BUILD" -G Ninja "${CONFIG_ARGS[@]}" \
@@ -92,14 +99,18 @@ if [[ "${TRACY:-0}" == 1 ]]; then
 fi
 # Desktop settings, then the Deck overrides (later keys win in a TOML table,
 # so drop the overridden ones first).
-python3 - config/skate1.runtime.toml tools/steamdeck/deck-overrides.toml "$PACKAGE/skate1.toml" <<'PY'
+OVERRIDES=(tools/steamdeck/deck-overrides.toml)
+[[ "${NATIVE:-0}" == 1 ]] && OVERRIDES+=(tools/steamdeck/native-overrides.toml)
+python3 - config/skate1.runtime.toml "${OVERRIDES[@]}" "$PACKAGE/skate1.toml" <<'PY'
 import re, sys
-base, over, out = sys.argv[1:4]
+base, overs, out = sys.argv[1], sys.argv[2:-1], sys.argv[-1]
 key = lambda l: re.match(r'\s*([A-Za-z0-9_]+)\s*=', l)
-over_lines = open(over).read().splitlines()
-over_keys = {key(l).group(1) for l in over_lines if key(l)}
-kept = [l for l in open(base).read().splitlines() if not (key(l) and key(l).group(1) in over_keys)]
-open(out, 'w').write('\n'.join(kept + [''] + over_lines) + '\n')
+lines = open(base).read().splitlines()
+for over in overs:
+    over_lines = open(over).read().splitlines()
+    over_keys = {key(l).group(1) for l in over_lines if key(l)}
+    lines = [l for l in lines if not (key(l) and key(l).group(1) in over_keys)] + [''] + over_lines
+open(out, 'w').write('\n'.join(lines) + '\n')
 PY
 cat > "$PACKAGE/README.txt" <<'TXT'
 skate1, native Linux build for the Steam Deck

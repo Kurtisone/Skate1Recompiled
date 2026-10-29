@@ -62,13 +62,15 @@ class Event:
 def read(path):
     data = open(path, "rb").read()
     magic, version, device, snapshot = struct.unpack_from("<4sIII", data, 0)
-    assert magic == b"SK1C" and version == 1, "not a frame capture"
+    assert magic == b"SK1C" and version in (1, 2), "not a frame capture"
     pos = 16
     events = []
     while data[pos:pos + 4] == b"EVNT":
-        function, *rest = struct.unpack_from("<I8IIIQQI", data, pos + 4)
-        regs, (result, lr, vs, ps, count) = rest[:8], rest[8:]
-        pos += 4 + 4 + 32 + 8 + 16 + 4
+        extra = 4 if version >= 2 else 0
+        function, *rest = struct.unpack_from("<I8III", data, pos + 4)
+        regs, (result, lr) = rest[:8], rest[8:]
+        vs, ps, count = struct.unpack_from("<QQI", data, pos + 48 + extra)
+        pos += 4 + 4 + 32 + 8 + extra + 16 + 4
         dev = data[pos:pos + snapshot]
         pos += snapshot
         blobs = []
