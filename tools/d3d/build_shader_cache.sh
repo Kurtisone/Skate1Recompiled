@@ -22,7 +22,7 @@ cp "$OUT"/allshaders/*.bin "$OUT/cacheinput/"
 if [ -n "${1:-}" ]; then
   cp "$1"/image_*.bin "$OUT/cacheinput/"
 fi
-XENOS_RECOMP_MICROCODE_KEY=1 LD_LIBRARY_PATH="$XR/thirdparty/dxc-bin/lib/x64" \
+XENOS_RECOMP_MICROCODE_KEY=1 XENOS_RECOMP_NO_ZSTD=1 LD_LIBRARY_PATH="$XR/thirdparty/dxc-bin/lib/x64" \
   "$XRB/XenosRecomp/XenosRecomp" "$OUT/cacheinput" "$OUT/shader_cache.cpp" \
   "$XR/XenosRecomp/shader_common.h"
 echo "$(grep -c '^	{ 0x' "$OUT/shader_cache.cpp") shaders in $OUT/shader_cache.cpp"

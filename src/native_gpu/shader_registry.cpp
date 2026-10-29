@@ -18,6 +18,7 @@
 #include <mutex>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 #define XXH_INLINE_ALL
 #include <xxhash.h>
@@ -44,6 +45,9 @@ rex::memory::Memory* g_memory = nullptr;
 
 std::mutex g_mutex;
 std::unordered_map<uint32_t, ShaderObject> g_objects;
+// Containers' virtual parts by cache key (the vertex elements the renderer
+// needs), copied at creation since the game frees them afterwards.
+std::unordered_map<uint64_t, std::vector<uint8_t>> g_containers;
 uint32_t g_misses = 0;
 
 const ShaderCacheEntry* FindEntry(uint64_t hash) {
@@ -68,6 +72,9 @@ void OnCreate(uint8_t* base, uint32_t object, uint32_t container) {
   const ShaderCacheEntry* entry = FindEntry(hash);
   std::lock_guard<std::mutex> lock(g_mutex);
   g_objects[object] = {entry, REX_LOAD_U32(container + 8)};
+  if (entry && !g_containers.count(hash)) {
+    g_containers.emplace(hash, std::vector<uint8_t>(base + container, base + container + virtual_size));
+  }
   if (entry) {
     if (REXCVAR_GET(native_gpu_shader_log)) {
       REXLOG_INFO("native_gpu: {} shader {:016X} object {:08X}", pixel ? "pixel" : "vertex",
@@ -110,6 +117,12 @@ void StartShaderRegistry(rex::memory::Memory* memory) {
 }
 
 ShaderObject FindShaderObject(uint32_t object, bool pixel) { return OnSet(object, pixel); }
+
+const uint8_t* FindShaderContainer(uint64_t key) {
+  std::lock_guard<std::mutex> lock(g_mutex);
+  auto it = g_containers.find(key);
+  return it == g_containers.end() ? nullptr : it->second.data();
+}
 
 // Shader object helpers (object, size, &info), info[0] = container.
 REX_HOOK_RAW(sub_82CC1038) {

@@ -13,6 +13,7 @@
 #include <rex/runtime.h>
 
 #include "frame_capture.h"
+#include "live_renderer.h"
 #include "shader_registry.h"
 
 REXCVAR_DEFINE_BOOL(native_gpu, false, "Skate1",
@@ -51,4 +52,5 @@ void StartNativeGpu(rex::Runtime* runtime) {
       "scalar block layout {}, unified memory {}",
       description.name, capabilities.descriptorIndexing, capabilities.bufferDeviceAddress,
       capabilities.scalarBlockLayout, capabilities.uma);
+  StartLiveRenderer(g_device.get(), runtime->memory());
 }

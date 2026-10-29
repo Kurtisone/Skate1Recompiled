@@ -37,7 +37,10 @@ if(SKATE1_NATIVE_GPU)
     list(APPEND SKATE1_SOURCES
         src/native_gpu/native_gpu.cpp
         src/native_gpu/frame_capture.cpp
-        src/native_gpu/shader_registry.cpp)
+        src/native_gpu/live_renderer.cpp
+        src/native_gpu/renderer.cpp
+        src/native_gpu/shader_registry.cpp
+        third_party/smol-v/smolv.cpp)
     # Recompiled shaders, generated from the game's own files (not
     # distributable): tools/d3d/build_shader_cache.sh.
     set(SKATE1_SHADER_CACHE "${CMAKE_CURRENT_SOURCE_DIR}/out/native/shader_cache.cpp"
@@ -70,6 +73,7 @@ rexglue_setup_target(skate1 GPU_PLUGINS xenos)
 if(SKATE1_NATIVE_GPU)
     target_compile_definitions(skate1 PRIVATE SKATE1_NATIVE_GPU=1)
     target_link_libraries(skate1 PRIVATE plume)
+    target_include_directories(skate1 PRIVATE src/native_gpu third_party/plume third_party/smol-v)
     # plume's Vulkan backend presents to Xlib windows on Linux.
     if(UNIX AND NOT APPLE AND NOT ANDROID)
         target_link_libraries(skate1 PRIVATE X11)

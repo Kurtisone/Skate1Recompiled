@@ -9,7 +9,9 @@
 #define XXH_INLINE_ALL
 #include <xxhash.h>
 #include <smolv.h>
+#ifdef NATIVE_GPU_ZSTD
 #include <zstd.h>
+#endif
 
 #include <plume_vulkan.h>
 
@@ -196,10 +198,20 @@ bool Renderer::Initialize(RenderDevice* device, const uint8_t* physical,
   device_ = device;
   physical_ = physical;
   container_ = std::move(container);
-  spirv_.resize(g_spirvCacheDecompressedSize);
-  if (ZSTD_decompress(spirv_.data(), spirv_.size(), g_compressedSpirvCache,
-                      g_spirvCacheCompressedSize) != spirv_.size()) {
+  // The game's cache is stored uncompressed (XENOS_RECOMP_NO_ZSTD, no zstd in
+  // the Steam Deck build); zstd only where the replay tool links it.
+  if (g_spirvCacheCompressedSize == g_spirvCacheDecompressedSize) {
+    spirv_.assign(g_compressedSpirvCache, g_compressedSpirvCache + g_spirvCacheCompressedSize);
+  } else {
+#ifdef NATIVE_GPU_ZSTD
+    spirv_.resize(g_spirvCacheDecompressedSize);
+    if (ZSTD_decompress(spirv_.data(), spirv_.size(), g_compressedSpirvCache,
+                        g_spirvCacheCompressedSize) != spirv_.size()) {
+      return false;
+    }
+#else
     return false;
+#endif
   }
   queue_ = device_->createCommandQueue(RenderCommandListType::DIRECT);
   commands_ = queue_->createCommandList();

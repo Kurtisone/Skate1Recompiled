@@ -36,6 +36,7 @@
 #include "d3d_trace.h"
 #include "generated/default/skate1_init.h"
 #include "shader_cache.h"
+#include "live_renderer.h"
 #include "shader_registry.h"
 
 REXCVAR_DEFINE_INT32(native_gpu_capture_seconds, 0, "Skate1",
@@ -194,6 +195,7 @@ void Capture(uint32_t function, uint32_t trace_index, PPCContext& ctx, uint8_t* 
   D3DTraceEnter(trace_index, ctx, base);
   const PPCContext before = ctx;
   original(ctx, base);
+  LiveRendererOnCall(function, before, ctx.r3.u32, base);
   std::lock_guard<std::mutex> lock(g_mutex);
   if (g_state == State::kCapturing) {
     std::vector<Blob> blobs;

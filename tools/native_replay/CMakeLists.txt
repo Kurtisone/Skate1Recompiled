@@ -14,3 +14,4 @@ target_include_directories(native_replay PRIVATE
     ${ROOT}/src ${ROOT}/src/native_gpu ${ROOT}/third_party/plume ${ROOT}/third_party/smol-v
     ${ROOT}/third_party/rexglue-sdk/thirdparty/xxHash)
 target_link_libraries(native_replay PRIVATE plume ${ZSTD_LIBRARY} X11)
+target_compile_definitions(native_replay PRIVATE NATIVE_GPU_ZSTD=1)

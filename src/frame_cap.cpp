@@ -18,6 +18,7 @@
 #include "d3d_trace.h"
 #ifdef SKATE1_NATIVE_GPU
 #include "native_gpu/frame_capture.h"
+#include "native_gpu/live_renderer.h"
 #endif
 #include "generated/default/skate1_init.h"
 
@@ -50,6 +51,7 @@ REX_HOOK_RAW(sub_82CCBE98) {
   D3DTraceEnter(kD3DTraceSwapIndex, ctx, base);
 #ifdef SKATE1_NATIVE_GPU
   FrameCaptureOnSwap(ctx, base);
+  LiveRendererOnSwap(base);
 #endif
   __imp__sub_82CCBE98(ctx, base);
   D3DTraceLeave(kD3DTraceSwapIndex);
