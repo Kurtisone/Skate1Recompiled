@@ -96,6 +96,15 @@ upload allocators, present. Written for Skate:
    write detection by watching guest pages like the emulated path.
 5. Render targets, clears, resolves, single-pass scene.
 
+Shader keys: the material shaders live inside RefPack-compressed assets
+(tools/d3d/harvest_shaders.py extracts them; render.big only holds loose
+debug/post shaders). Containers may be patched in memory after loading, so
+the cache is keyed by the microcode instead (XenosRecomp branch `skate1`,
+`XENOS_RECOMP_MICROCODE_KEY=1`: XXH3 over shader->size dwords at
+virtualSize + physicalOffset); at runtime the same bytes are at the shader
+object's microcode physical address (+24 pixel, +32 vertex), the size in
+the container's Shader struct.
+
 Milestone B: replay one captured frame offscreen with plume and save it next
 to the emulated frame on the headless benchmark for comparison.
 
