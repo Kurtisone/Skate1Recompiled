@@ -74,6 +74,31 @@ and buffers would have to be tracked by guest address with write detection,
 as the emulated path does. The native layer's gain is then mostly the
 per-draw translation cost, which scene_msaa_off already cut by ~3x.
 
+## Skate front-end (2026-10-29)
+
+Reused from Unleashed: plume device, bindless texture/sampler heaps, pipeline
+creation and caching from a PipelineState, XenosRecomp shader cache,
+upload allocators, present. Written for Skate:
+
+1. Shader registry: hook the shader container users (`82CBDF20`,
+   `82CBFEC0`, `82CC4470`), hash each container like XenosRecomp's cache
+   (XXH3) to find its SPIR-V, and parse the vertex shader's `vfetch`
+   instructions (format, stride, offset, fetch constant slot, signedness;
+   `VertexFetchInstruction` in XenosRecomp's shader_code.h) into the input
+   layout, since Skate has no vertex declarations.
+2. Draw capture: at DrawIndexedVertices / DrawVertices / EndVertices,
+   snapshot what the draw needs from the device shadow (render state
+   registers, constants, fetch constants, shaders, streams, indices).
+3. Pipeline state from registers (RB_DEPTHCONTROL, RB_BLENDCONTROL*,
+   RB_COLOR_MASK, PA_SU_SC_MODE_CNTL, RB_COLOR*_INFO formats...).
+4. Textures and buffers by guest address: textures from fetch constants
+   (untiling and format conversion), buffers from vertex fetch constants;
+   write detection by watching guest pages like the emulated path.
+5. Render targets, clears, resolves, single-pass scene.
+
+Milestone B: replay one captured frame offscreen with plume and save it next
+to the emulated frame on the headless benchmark for comparison.
+
 ## Design (2026-10-29)
 
 D3D keeps the whole draw state in its device shadow (registers in Xenos
