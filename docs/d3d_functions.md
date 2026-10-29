@@ -55,6 +55,13 @@ Shaders (probed 2026-10-29):
   header at +40.
 - SetVertexShader `82CBE2E8(device, object, n, ?, microcode physical)`:
   object type 6, microcode at +32, container pointer at +60.
-- So container -> XXH3 over virtualSize + physicalSize -> XenosRecomp cache
-  entry; XenosRecomp also finds containers embedded in any file, so the game
-  archives can be scanned for all shaders.
+- Correction (registry, 2026-10-29): `82CBDF20(container, &info)` fills
+  info = {container, object size (header 40 pixel / 872 vertex + virtual
+  size), physical part, physical size}; the game's loader `82B0C700` copies
+  the physical part, then `82CC1038` (vertex) / `82CC0EB0` (pixel)
+  `(object, size, &info)` zero the header and copy the virtual part after
+  it. +24 / +32 is the physical part's address (microcode at physicalOffset
+  in it); the vertex copy is patched by D3D (vfetch format/stride/offset).
+  +60 of a vertex object is not its container. `Shader.size` is in bytes.
+- Cache key: XXH3 of the microcode taken from the container at creation
+  (src/native_gpu/shader_registry.cpp).

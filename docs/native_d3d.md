@@ -31,6 +31,14 @@ native one covers everything.
   compile to SPIR-V/DXIL once raw constant registers are handled (branch
   `skate1` of a local XenosRecomp clone next to this repo, one commit).
 
+- Shader registry done (2026-10-29, src/native_gpu/shader_registry.cpp):
+  the cache (tools/d3d/build_shader_cache.sh, 348 shaders: 322 from the
+  archives' render.big/marquee.big, 26 compiled into the executable and
+  dumped from the loaded image; the RW4 world stream has none) is keyed by
+  microcode, and objects are keyed when the game builds them in place
+  (`82CC1038` vertex, `82CC0EB0` pixel). Every shader set in free skate
+  resolves.
+
 ## Decision (2026-10-29): port Unleashed Recompiled's renderer
 
 The user chose to reuse Unleashed Recompiled's D3D replacement
@@ -104,6 +112,16 @@ the cache is keyed by the microcode instead (XenosRecomp branch `skate1`,
 virtualSize + physicalOffset); at runtime the same bytes are at the shader
 object's microcode physical address (+24 pixel, +32 vertex), the size in
 the container's Shader struct.
+
+Findings while building the registry: a shader object is a D3D header (40
+bytes pixel, 872 vertex) followed by a copy of the container's virtual part;
+the header's address (+24 pixel, +32 vertex) is the start of the copied
+physical part (literal constants first, microcode at the Shader struct's
+physicalOffset). D3D patches each vertex fetch (format, stride, offset) into
+that copy when it binds the streams, so the GPU's microcode differs from the
+archives': the patched fetches are where the input layout can be read.
+`82B0E1F0` derives vertex shaders at runtime from existing ones
+(`82CC0E58`, `82CC4470`); their microcode is in the cache too.
 
 Milestone B: replay one captured frame offscreen with plume and save it next
 to the emulated frame on the headless benchmark for comparison.
