@@ -142,6 +142,41 @@ void OnSwap() {
   }
 }
 
+// The post-processing shaders are compiled into the executable rather than
+// the archives (tools/d3d/harvest_shaders.py): write every container found in
+// the loaded image to d3d_trace_shader_dir as image_<address>_<kind>.bin.
+void DumpImageShaders(uint8_t* base) {
+  std::string dir = REXCVAR_GET(d3d_trace_shader_dir);
+  if (dir.empty() || !REXCVAR_GET(d3d_trace_shader_args)) {
+    return;
+  }
+  const uint8_t* image = base + REX_IMAGE_BASE;
+  const auto be32 = [&](uint32_t offset) {
+    return uint32_t(image[offset]) << 24 | uint32_t(image[offset + 1]) << 16 |
+           uint32_t(image[offset + 2]) << 8 | image[offset + 3];
+  };
+  uint32_t count = 0;
+  for (uint32_t offset = 0; offset + 0x24 <= REX_IMAGE_SIZE; offset += 4) {
+    const uint32_t magic = be32(offset);
+    if ((magic & 0xFFFFFFFE) != 0x102A1100 || be32(offset + 12) != 0 ||
+        be32(offset + 16) != 0x24) {
+      continue;
+    }
+    const uint32_t size = be32(offset + 4) + be32(offset + 8);
+    if (!size || size > REX_IMAGE_SIZE - offset) {
+      continue;
+    }
+    std::string path = fmt::format("{}/image_{:08X}_{}.bin", dir, uint32_t(REX_IMAGE_BASE) + offset,
+                                   (magic & 1) ? "vs" : "ps");
+    if (FILE* f = std::fopen(path.c_str(), "wb")) {
+      std::fwrite(image + offset, 1, size, f);
+      std::fclose(f);
+      ++count;
+    }
+  }
+  REXLOG_INFO("d3d_trace: {} shader containers in the image", count);
+}
+
 }  // namespace
 
 void D3DTraceEnter(uint32_t index, const PPCContext& ctx, uint8_t* base) {
@@ -171,7 +206,7 @@ void D3DTraceEnter(uint32_t index, const PPCContext& ctx, uint8_t* base) {
                 bytes[i] = REX_LOAD_U8(address + i);
               }
               std::string path = fmt::format("{}/{:08X}_{}.bin", dir, address,
-                                             (magic & 1) ? "ps" : "vs");
+                                             (magic & 1) ? "vs" : "ps");
               if (FILE* f = std::fopen(path.c_str(), "wb")) {
                 std::fwrite(bytes.data(), 1, bytes.size(), f);
                 std::fclose(f);
@@ -189,6 +224,8 @@ void D3DTraceEnter(uint32_t index, const PPCContext& ctx, uint8_t* base) {
     }
   }
   if (index == kD3DTraceSwapIndex && depth == 0) {
+    static std::once_flag image_scan;
+    std::call_once(image_scan, [&] { DumpImageShaders(base); });
     OnSwap();
   }
   if (g_state.load(std::memory_order_relaxed) != 1) {
