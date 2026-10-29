@@ -31,6 +31,38 @@ native one covers everything.
   compile to SPIR-V/DXIL once raw constant registers are handled (branch
   `skate1` of a local XenosRecomp clone next to this repo, one commit).
 
+## Decision (2026-10-29): port Unleashed Recompiled's renderer
+
+The user chose to reuse Unleashed Recompiled's D3D replacement
+(hedge-dev/UnleashedRecomp, `UnleashedRecomp/gpu/video.cpp`, GPL-3.0) on
+plume (renderbag/plume, MIT) with XenosRecomp shaders. Consequence:
+Skate1Recompiled is distributed under GPL-3.0 once that code is included.
+
+Why it fits: Skate and Sonic Unleashed link the same XDK D3D, and the device
+layout Unleashed declares (`GuestDevice`: dirty flags at +0, render state
+function table at +0x40 (0x65 entries), sampler state functions, sampler
+fetch constants at +0x480 (32 x 24 bytes), float constants at +0x780 /
++0x1780, bool constants at +0x2780) matches what Skate's draw flush reads.
+Unleashed replaces the device's render state function table instead of
+hooking each setter, so Skate's ~60 per-state setters come with it.
+
+Porting plan:
+1. Vendor plume and the D3D core of video.cpp (resources, states, draws,
+   pipeline/vertex declaration caches, resolves, present) into
+   `src/native_gpu/`, without Unleashed's UI, config, installer and
+   Sonic-specific patches.
+2. Compat layer for rexglue: guest memory (`g_memory` -> `base`), hooks
+   (`GUEST_FUNCTION_HOOK` -> `REX_HOOK`), physical heap allocations, guest
+   threads, vblank/swap interrupts the game waits on.
+3. Map the ~42 hooked functions to Skate's addresses (docs/d3d_functions.md)
+   and add Skate's own needs: BeginTiling/EndTiling and predication
+   (render once), Resolve, BeginVertices/EndVertices, ClearF.
+4. Presentation: plume swapchain on the rexglue SDL window while the native
+   path runs (rexglue's GPU plugin not loaded then); keep rexglue's GPU
+   plugin as the fallback path with a cvar.
+5. Shader cache: XenosRecomp (branch `skate1`) over the dumped containers,
+   then over all shaders in the game's archives.
+
 ## Design (2026-10-29)
 
 D3D keeps the whole draw state in its device shadow (registers in Xenos
