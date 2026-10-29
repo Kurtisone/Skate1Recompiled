@@ -36,3 +36,13 @@ float4 PSMain(float4 position : SV_Position) : SV_Target
     }
     return value * g_Push.Scale;
 }
+
+// Presentation: the front buffer packed as A2B10G10R10 (the presenter's
+// guest output format) into an R32_UINT target, read back and copied as is.
+uint PSPack(float4 position : SV_Position) : SV_Target
+{
+    int2 p = int2(position.xy) + int2(g_Push.OffsetX, g_Push.OffsetY);
+    float4 value = saturate(g_Textures[g_Push.SourceIndex].Load(int3(p, 0)));
+    uint3 rgb = uint3(value.rgb * 1023.0 + 0.5);
+    return rgb.r | (rgb.g << 10) | (rgb.b << 20) | (3u << 30);
+}

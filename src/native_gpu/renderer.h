@@ -94,8 +94,20 @@ class Renderer {
   void Draw(const DrawCall& call);
   void Clear(const ClearCall& call);
   void Resolve(const ResolveCall& call);
-  // Submits the frame and waits for it.
-  void EndFrame();
+  // Submits the frame and waits for it. With a front buffer address, also
+  // packs that resolved texture as A2B10G10R10 for presented().
+  void EndFrame(uint32_t present_address = 0);
+
+  // The packed front buffer of the frame before the last EndFrame's (frames
+  // are pipelined; row pitch = width * 4), or null.
+  const uint32_t* presented() const {
+    return presented_ && presented_->present_ready ? presented_->present_pixels : nullptr;
+  }
+  uint32_t presented_width() const { return presented_ ? presented_->present_width : 0; }
+  uint32_t presented_height() const { return presented_ ? presented_->present_height : 0; }
+
+  // Waits for all submitted frames.
+  void WaitIdle();
 
   // Reads back a resolved texture (RGBA8) by its guest address.
   bool ReadResolved(uint32_t address, std::vector<uint8_t>& rgba, uint32_t& width,
@@ -150,17 +162,44 @@ class Renderer {
   std::function<const uint8_t*(uint64_t)> container_;
   std::vector<uint8_t> spirv_;
 
+  // Frames in flight: the game's render thread records frame N while the GPU
+  // runs frame N-1. Each slot owns what its commands use.
+  struct Frame {
+    std::unique_ptr<plume::RenderCommandList> commands;
+    std::unique_ptr<plume::RenderCommandFence> fence;
+    std::unique_ptr<plume::RenderBuffer> upload;  // per-frame uploads
+    bool pending = false;
+    // Released once the frame has completed.
+    std::vector<std::unique_ptr<plume::RenderBuffer>> retired_buffers;
+    std::vector<std::unique_ptr<plume::RenderTexture>> retired_textures;
+    std::vector<std::unique_ptr<plume::RenderTextureView>> retired_views;
+    std::vector<std::unique_ptr<plume::RenderFramebuffer>> retired_framebuffers;
+    // The packed front buffer read back by this frame.
+    std::unique_ptr<plume::RenderBuffer> present_readback;
+    const uint32_t* present_pixels = nullptr;
+    uint32_t present_width = 0, present_height = 0;
+    bool present_ready = false;
+  };
+  static constexpr uint32_t kFramesInFlight = 2;
+  void WaitFrame(Frame& frame);
+  void UseUploadBuffer(plume::RenderBuffer* buffer, uint64_t size);
+
   std::unique_ptr<plume::RenderCommandQueue> queue_;
-  std::unique_ptr<plume::RenderCommandList> commands_;
-  std::unique_ptr<plume::RenderCommandFence> fence_;
+  Frame frames_[kFramesInFlight];
+  uint32_t frame_ = 0;
+  const Frame* presented_ = nullptr;
+  plume::RenderCommandList* commands_ = nullptr;  // the recording frame's
   std::unique_ptr<plume::RenderDescriptorSet> texture_2d_set_, texture_3d_set_, texture_cube_set_;
   std::unique_ptr<plume::RenderDescriptorSet> sampler_set_;
   std::unique_ptr<plume::RenderPipelineLayout> layout_, resolve_layout_;
-  std::unique_ptr<plume::RenderShader> resolve_vs_, resolve_ps_;
-  std::unique_ptr<plume::RenderBuffer> upload_;
+  std::unique_ptr<plume::RenderShader> resolve_vs_, resolve_ps_, pack_ps_;
+  std::unique_ptr<plume::RenderTexture> present_texture_;
+  uint32_t present_width_ = 0, present_height_ = 0;
+  // The recording frame's upload buffer (its slot's, or an overflow one).
+  plume::RenderBuffer* upload_ = nullptr;
   uint8_t* upload_memory_ = nullptr;
-  uint64_t upload_address_ = 0, upload_offset_ = 0;
-  static constexpr uint64_t kUploadSize = 512ull << 20;
+  uint64_t upload_address_ = 0, upload_offset_ = 0, upload_size_ = 0;
+  static constexpr uint64_t kUploadSize = 64ull << 20;
 
   std::unique_ptr<plume::RenderTexture> null_2d_, null_3d_, null_cube_;
   std::unique_ptr<plume::RenderTextureView> null_cube_view_;

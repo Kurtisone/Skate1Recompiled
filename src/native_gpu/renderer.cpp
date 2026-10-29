@@ -216,8 +216,14 @@ bool Renderer::Initialize(RenderDevice* device, const uint8_t* physical,
 #endif
   }
   queue_ = device_->createCommandQueue(RenderCommandListType::DIRECT);
-  commands_ = queue_->createCommandList();
-  fence_ = device_->createCommandFence();
+  for (Frame& frame : frames_) {
+    frame.commands = queue_->createCommandList();
+    frame.fence = device_->createCommandFence();
+    frame.upload = device_->createBuffer(RenderBufferDesc::UploadBuffer(
+        kUploadSize, RenderBufferFlag::CONSTANT | RenderBufferFlag::VERTEX | RenderBufferFlag::INDEX));
+  }
+  commands_ = frames_[0].commands.get();
+  UseUploadBuffer(frames_[0].upload.get(), kUploadSize);
 
   // Bindless heaps and pipeline layout as Unleashed sets them up: 2D, 3D and
   // cube texture heaps, a sampler heap, and 24 bytes of push constants (the
@@ -251,11 +257,8 @@ bool Renderer::Initialize(RenderDevice* device, const uint8_t* physical,
   resolve_layout_ = resolveLayout.create(device_);
   resolve_vs_ = device_->createShader(k_resolve_vs, sizeof(k_resolve_vs), "VSMain", RenderShaderFormat::SPIRV);
   resolve_ps_ = device_->createShader(k_resolve_ps, sizeof(k_resolve_ps), "PSMain", RenderShaderFormat::SPIRV);
+  pack_ps_ = device_->createShader(k_pack_ps, sizeof(k_pack_ps), "PSPack", RenderShaderFormat::SPIRV);
 
-  upload_ = device_->createBuffer(RenderBufferDesc::UploadBuffer(
-      kUploadSize, RenderBufferFlag::CONSTANT | RenderBufferFlag::VERTEX | RenderBufferFlag::INDEX));
-  upload_memory_ = static_cast<uint8_t*>(upload_->map());
-  upload_address_ = upload_->getDeviceAddress();
 
   // Index 0 of each heap: 1x1 white textures; sampler 0: linear wrap.
   null_2d_ = device_->createTexture(RenderTextureDesc::Texture2D(1, 1, 1, RenderFormat::R8G8B8A8_UNORM));
@@ -278,7 +281,7 @@ bool Renderer::Initialize(RenderDevice* device, const uint8_t* physical,
     for (uint32_t slice = 0; slice < (texture == null_cube_.get() ? 6u : 1u); ++slice) {
       commands_->copyTextureRegion(
           RenderTextureCopyLocation::Subresource(texture, 0, slice),
-          RenderTextureCopyLocation::PlacedFootprint(upload_.get(), RenderFormat::R8G8B8A8_UNORM, 1, 1, 1,
+          RenderTextureCopyLocation::PlacedFootprint(upload_, RenderFormat::R8G8B8A8_UNORM, 1, 1, 1,
                                                      64, whiteOffset));
     }
     Transition(texture, RenderTextureLayout::SHADER_READ);
@@ -287,18 +290,46 @@ bool Renderer::Initialize(RenderDevice* device, const uint8_t* physical,
   texture_3d_set_->setTexture(0, null_3d_.get(), RenderTextureLayout::SHADER_READ);
   texture_cube_set_->setTexture(0, null_cube_.get(), RenderTextureLayout::SHADER_READ, null_cube_view_.get());
   commands_->end();
-  const RenderCommandList* lists[] = {commands_.get()};
-  queue_->executeCommandLists(lists, 1, nullptr, 0, nullptr, 0, fence_.get());
-  queue_->waitForCommandFence(fence_.get());
+  const RenderCommandList* lists[] = {commands_};
+  queue_->executeCommandLists(lists, 1, nullptr, 0, nullptr, 0, frames_[0].fence.get());
+  queue_->waitForCommandFence(frames_[0].fence.get());
   upload_offset_ = 0;
   return true;
 }
 
+void Renderer::UseUploadBuffer(RenderBuffer* buffer, uint64_t size) {
+  upload_ = buffer;
+  upload_memory_ = static_cast<uint8_t*>(buffer->map());  // persistently mapped
+  upload_address_ = buffer->getDeviceAddress();
+  upload_size_ = size;
+  upload_offset_ = 0;
+}
+
+void Renderer::WaitFrame(Frame& frame) {
+  if (!frame.pending) return;
+  queue_->waitForCommandFence(frame.fence.get());
+  frame.pending = false;
+  frame.retired_framebuffers.clear();
+  frame.retired_buffers.clear();
+  frame.retired_views.clear();
+  frame.retired_textures.clear();
+}
+
+void Renderer::WaitIdle() {
+  for (Frame& frame : frames_) WaitFrame(frame);
+}
+
 uint64_t Renderer::Allocate(const void* data, uint64_t size, uint64_t alignment) {
   upload_offset_ = (upload_offset_ + alignment - 1) & ~(alignment - 1);
-  if (upload_offset_ + size > kUploadSize) {
-    ++stats_["upload buffer full"];
-    upload_offset_ = 0;
+  if (upload_offset_ + size > upload_size_) {
+    // Full (texture streaming): continue in an overflow buffer that lives
+    // until this frame completes.
+    ++stats_["upload overflow buffers"];
+    const uint64_t overflowSize = std::max<uint64_t>(kUploadSize, size + alignment);
+    auto overflow = device_->createBuffer(RenderBufferDesc::UploadBuffer(
+        overflowSize, RenderBufferFlag::CONSTANT | RenderBufferFlag::VERTEX | RenderBufferFlag::INDEX));
+    UseUploadBuffer(overflow.get(), overflowSize);
+    retired_buffers_.push_back(std::move(overflow));
   }
   const uint64_t at = upload_offset_;
   if (data) std::memcpy(upload_memory_ + at, data, size);
@@ -338,21 +369,102 @@ void Renderer::SetMainLayout() {
 }
 
 void Renderer::BeginFrame() {
+  Frame& frame = frames_[frame_];
+  WaitFrame(frame);
+  commands_ = frame.commands.get();
+  UseUploadBuffer(frame.upload.get(), kUploadSize);
   commands_->begin();
-  upload_offset_ = 0;
   current_targets_ = {};
   main_layout_bound_ = false;
 }
 
-void Renderer::EndFrame() {
+void Renderer::EndFrame(uint32_t present_address) {
+  Frame& frame = frames_[frame_];
+  frame.present_ready = false;
+  auto front = resolved_.find(present_address & 0xFFFFF000);
+  if (present_address && front != resolved_.end() && front->second.texture) {
+    // Pack the front buffer as A2B10G10R10 and read it back.
+    Texture& source = front->second;
+    if (!present_texture_ || present_width_ != source.width || present_height_ != source.height) {
+      present_width_ = source.width;
+      present_height_ = source.height;
+      if (present_texture_) {
+        for (auto it = framebuffers_.begin(); it != framebuffers_.end();) {
+          if (it->first.first == present_texture_.get()) {
+            retired_framebuffers_.push_back(std::move(it->second));
+            it = framebuffers_.erase(it);
+          } else {
+            ++it;
+          }
+        }
+        layouts_.erase(present_texture_.get());
+        retired_textures_.push_back(std::move(present_texture_));
+      }
+      present_texture_ = device_->createTexture(
+          RenderTextureDesc::ColorTarget(present_width_, present_height_, RenderFormat::R32_UINT));
+    }
+    if (frame.present_width != present_width_ || frame.present_height != present_height_) {
+      if (frame.present_readback) frame.retired_buffers.push_back(std::move(frame.present_readback));
+      frame.present_width = present_width_;
+      frame.present_height = present_height_;
+      frame.present_readback = device_->createBuffer(
+          RenderBufferDesc::ReadbackBuffer(uint64_t(present_width_) * present_height_ * 4));
+      frame.present_pixels = static_cast<const uint32_t*>(frame.present_readback->map());
+    }
+    Transition(source.texture.get(), RenderTextureLayout::SHADER_READ);
+    SetTargets(present_texture_.get(), nullptr);
+    auto& pipeline = pipelines_[uint64_t(RenderFormat::R32_UINT) | 1ull << 61];
+    if (!pipeline) {
+      RenderGraphicsPipelineDesc desc;
+      desc.pipelineLayout = resolve_layout_.get();
+      desc.vertexShader = resolve_vs_.get();
+      desc.pixelShader = pack_ps_.get();
+      desc.renderTargetFormat[0] = RenderFormat::R32_UINT;
+      desc.renderTargetBlend[0] = RenderBlendDesc::Copy();
+      desc.renderTargetCount = 1;
+      pipeline = device_->createGraphicsPipeline(desc);
+    }
+    commands_->setGraphicsPipelineLayout(resolve_layout_.get());
+    commands_->setGraphicsDescriptorSet(texture_2d_set_.get(), 0);
+    main_layout_bound_ = false;
+    commands_->setPipeline(pipeline.get());
+    ResolvePushConstants push{source.index, 0, 1.0f, 0, 0};
+    commands_->setGraphicsPushConstants(0, &push);
+    RenderViewport viewport(0.0f, 0.0f, float(present_width_), float(present_height_));
+    RenderRect scissor(0, 0, int32_t(present_width_), int32_t(present_height_));
+    commands_->setViewports(&viewport, 1);
+    commands_->setScissors(&scissor, 1);
+    commands_->drawInstanced(3, 1, 0, 0);
+    Transition(present_texture_.get(), RenderTextureLayout::COPY_SOURCE);
+    // plume has no texture-to-buffer copy.
+    VkBufferImageCopy region{};
+    region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    region.imageSubresource.layerCount = 1;
+    region.imageExtent = {present_width_, present_height_, 1};
+    vkCmdCopyImageToBuffer(static_cast<VulkanCommandList*>(commands_)->vk,
+                           static_cast<VulkanTexture*>(present_texture_.get())->vk,
+                           VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                           static_cast<VulkanBuffer*>(frame.present_readback.get())->vk, 1, &region);
+    frame.present_ready = true;
+  }
   commands_->end();
-  const RenderCommandList* lists[] = {commands_.get()};
-  queue_->executeCommandLists(lists, 1, nullptr, 0, nullptr, 0, fence_.get());
-  queue_->waitForCommandFence(fence_.get());
-  retired_framebuffers_.clear();
+  const RenderCommandList* lists[] = {commands_};
+  queue_->executeCommandLists(lists, 1, nullptr, 0, nullptr, 0, frame.fence.get());
+  frame.pending = true;
+  // What this frame's commands use is released once it has completed.
+  for (auto& b : retired_buffers_) frame.retired_buffers.push_back(std::move(b));
+  for (auto& t : retired_textures_) frame.retired_textures.push_back(std::move(t));
+  for (auto& v : retired_views_) frame.retired_views.push_back(std::move(v));
+  for (auto& f : retired_framebuffers_) frame.retired_framebuffers.push_back(std::move(f));
   retired_buffers_.clear();
-  retired_views_.clear();
   retired_textures_.clear();
+  retired_views_.clear();
+  retired_framebuffers_.clear();
+  // Let the GPU run this frame while the game records the next one: only
+  // the previous frame has to be finished (its slot records next).
+  frame_ = (frame_ + 1) % kFramesInFlight;
+  WaitFrame(frames_[frame_]);
+  presented_ = &frames_[frame_];
 }
 
 Renderer::Shader* Renderer::GetShader(uint64_t key) {
@@ -475,7 +587,7 @@ Renderer::Texture* Renderer::GetGuestTexture(const xenos::TextureFetch& t) {
     Transition(guest.texture.get(), RenderTextureLayout::COPY_DEST);
     commands_->copyTextureRegion(
         RenderTextureCopyLocation::Subresource(guest.texture.get()),
-        RenderTextureCopyLocation::PlacedFootprint(upload_.get(), format, t.width, t.height, t.depth, t.width, at));
+        RenderTextureCopyLocation::PlacedFootprint(upload_, format, t.width, t.height, t.depth, t.width, at));
     Transition(guest.texture.get(), RenderTextureLayout::SHADER_READ);
     RenderTextureViewDesc view;
     view.format = format;
@@ -509,7 +621,7 @@ Renderer::Texture* Renderer::GetGuestTexture(const xenos::TextureFetch& t) {
     xenos::UntileTexture(physical_, t, slice, upload_memory_ + at);
     commands_->copyTextureRegion(
         RenderTextureCopyLocation::Subresource(guest.texture.get(), 0, slice),
-        RenderTextureCopyLocation::PlacedFootprint(upload_.get(), format, t.width, t.height, 1,
+        RenderTextureCopyLocation::PlacedFootprint(upload_, format, t.width, t.height, 1,
                                                    blocksX * block.size, at));
   }
   Transition(guest.texture.get(), RenderTextureLayout::SHADER_READ);
@@ -931,6 +1043,9 @@ bool Renderer::ReadResolved(uint32_t address, std::vector<uint8_t>& rgba, uint32
   width = texture.width;
   height = texture.height;
   auto readback = device_->createBuffer(RenderBufferDesc::ReadbackBuffer(uint64_t(width) * height * 4));
+  WaitIdle();
+  Frame& frame = frames_[frame_];
+  commands_ = frame.commands.get();
   commands_->begin();
   layouts_.erase(texture.texture.get());
   layouts_[texture.texture.get()] = RenderTextureLayout::SHADER_READ;
@@ -940,15 +1055,15 @@ bool Renderer::ReadResolved(uint32_t address, std::vector<uint8_t>& rgba, uint32
   region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
   region.imageSubresource.layerCount = 1;
   region.imageExtent = {width, height, 1};
-  vkCmdCopyImageToBuffer(static_cast<VulkanCommandList*>(commands_.get())->vk,
+  vkCmdCopyImageToBuffer(static_cast<VulkanCommandList*>(commands_)->vk,
                          static_cast<VulkanTexture*>(texture.texture.get())->vk,
                          VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, static_cast<VulkanBuffer*>(readback.get())->vk,
                          1, &region);
   Transition(texture.texture.get(), RenderTextureLayout::SHADER_READ);
   commands_->end();
-  const RenderCommandList* lists[] = {commands_.get()};
-  queue_->executeCommandLists(lists, 1, nullptr, 0, nullptr, 0, fence_.get());
-  queue_->waitForCommandFence(fence_.get());
+  const RenderCommandList* lists[] = {commands_};
+  queue_->executeCommandLists(lists, 1, nullptr, 0, nullptr, 0, frame.fence.get());
+  queue_->waitForCommandFence(frame.fence.get());
   const uint8_t* data = static_cast<const uint8_t*>(readback->map());
   rgba.assign(data, data + size_t(width) * height * 4);
   readback->unmap();

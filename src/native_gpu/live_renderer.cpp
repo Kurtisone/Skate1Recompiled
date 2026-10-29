@@ -18,10 +18,16 @@
 #include <climits>
 #include <cstdio>
 #include <memory>
+#include <mutex>
+#include <unordered_set>
 #include <string>
 #include <vector>
 
+#include <dlfcn.h>
+#include <link.h>
+
 #include <rex/cvar.h>
+#include <rex/graphics/native_guest_renderer.h>
 #include <rex/hook.h>
 #include <rex/logging.h>
 #include <rex/memory.h>
@@ -34,6 +40,9 @@
 REXCVAR_DEFINE_BOOL(native_gpu_render, false, "Skate1",
                     "Render through the native D3D layer next to the emulated GPU (offscreen, "
                     "work in progress)");
+REXCVAR_DEFINE_BOOL(native_gpu_present, false, "Skate1",
+                    "Show the native renderer's frames (with native_gpu_render; pair with "
+                    "gpu_skip_guest_draws so the emulated GPU does not render them too)");
 REXCVAR_DEFINE_INT32(native_gpu_dump_seconds, 0, "Skate1",
                      "Write the native front buffer this many seconds after the first frame "
                      "(0 = never)");
@@ -101,6 +110,78 @@ class PhysicalWriteWatcher : public native_gpu::WriteWatcher {
   std::array<std::atomic<uint64_t>, kPages / 64> dirty_{};
 };
 std::unique_ptr<PhysicalWriteWatcher> g_watcher;
+
+// The last native frame for the presenter (A2B10G10R10, the guest output
+// format), handed from the render thread to the GPU command thread.
+std::mutex g_frame_mutex;
+std::vector<uint32_t> g_frame;
+uint32_t g_frame_width = 0, g_frame_height = 0;
+// Presenter-side upload buffer and the guest output images already written.
+rex::graphics::nrhi::Buffer* g_upload = nullptr;
+uint64_t g_upload_size = 0;
+std::unordered_set<rex::graphics::nrhi::Texture*> g_written_outputs;
+
+// Native guest output renderer (rex/graphics/native_guest_renderer.h): copies
+// the last native frame into the presenter's guest output image.
+bool PresentNativeFrame(const rex::graphics::NativeGuestOutputRenderContext& context, void*);
+
+// The registry is in the runtime-loaded GPU plugin: find its export among
+// the loaded libraries once the plugin is up (first swap).
+bool RegisterPresenter() {
+  using SetRenderer = void (*)(rex::graphics::NativeGuestOutputRenderer, void*);
+  SetRenderer set = nullptr;
+  dl_iterate_phdr(
+      [](dl_phdr_info* info, size_t, void* data) {
+        if (!info->dlpi_name || !std::strstr(info->dlpi_name, "rexgpu")) return 0;
+        if (void* handle = dlopen(info->dlpi_name, RTLD_LAZY | RTLD_NOLOAD)) {
+          *static_cast<SetRenderer*>(data) =
+              reinterpret_cast<SetRenderer>(dlsym(handle, "rex_gpu_set_native_guest_output_renderer"));
+          dlclose(handle);
+        }
+        return *static_cast<SetRenderer*>(data) ? 1 : 0;
+      },
+      &set);
+  if (!set) {
+    REXLOG_ERROR("native_gpu: the GPU plugin has no native guest output entry point");
+    return false;
+  }
+  set(&PresentNativeFrame, nullptr);
+  REXLOG_INFO("native_gpu: presenting native frames");
+  return true;
+}
+
+bool PresentNativeFrame(const rex::graphics::NativeGuestOutputRenderContext& context, void*) {
+  namespace nrhi = rex::graphics::nrhi;
+  std::lock_guard<std::mutex> lock(g_frame_mutex);
+  if (g_frame.empty() || !context.guest_output) return false;
+  const uint32_t width = std::min(g_frame_width, context.guest_output->width());
+  const uint32_t height = std::min(g_frame_height, context.guest_output->height());
+  const uint32_t row_pitch = (width * 4 + nrhi::kRowPitchAlignment - 1) & ~(nrhi::kRowPitchAlignment - 1);
+  const uint64_t size = uint64_t(row_pitch) * height;
+  if (g_upload_size < size) {
+    if (g_upload) context.device->DestroyDeferred(g_upload);
+    nrhi::BufferDesc desc;
+    desc.size = size;
+    desc.heap = nrhi::HeapKind::kUpload;
+    desc.bind_class = nrhi::BufferBindClass::kCopySrc;
+    g_upload = context.device->CreateBuffer(desc);
+    g_upload_size = size;
+  }
+  auto* dst = static_cast<uint8_t*>(context.device->Map(g_upload));
+  for (uint32_t y = 0; y < height; ++y) {
+    std::memcpy(dst + size_t(y) * row_pitch, &g_frame[size_t(y) * g_frame_width], width * 4);
+  }
+  context.device->Unmap(g_upload);
+  const nrhi::ResourceState initial = g_written_outputs.insert(context.guest_output).second
+                                          ? nrhi::ResourceState::kCommon
+                                          : nrhi::ResourceState::kGuestOutput;
+  context.cmd->Barrier(context.guest_output, initial, nrhi::ResourceState::kCopyDest);
+  context.cmd->FlushBarriers();
+  context.cmd->CopyBufferToTexture(context.guest_output, 0, 0, g_upload, 0, row_pitch, width, height, 1);
+  context.cmd->Barrier(context.guest_output, nrhi::ResourceState::kCopyDest, nrhi::ResourceState::kGuestOutput);
+  context.cmd->FlushBarriers();
+  return true;
+}
 uint32_t g_front_buffer = 0;
 uint32_t g_inline_vertices = 0;
 uint32_t g_inline_primitive = 0;
@@ -141,7 +222,7 @@ void StartLiveRenderer(plume::RenderDevice* device, rex::memory::Memory* memory)
     return;
   }
   g_renderer->BeginFrame();
-  REXLOG_INFO("native_gpu: live rendering on");
+  REXLOG_INFO("native_gpu: live rendering on{}", REXCVAR_GET(native_gpu_present) ? ", presenting" : "");
 }
 
 void LiveRendererOnCall(uint32_t function, const PPCContext& before, uint32_t result, uint8_t* base) {
@@ -249,7 +330,15 @@ void LiveRendererOnCall(uint32_t function, const PPCContext& before, uint32_t re
 void LiveRendererOnSwap(uint8_t* base) {
   (void)base;
   if (!g_renderer) return;
-  g_renderer->EndFrame();
+  static const bool registered = REXCVAR_GET(native_gpu_present) && RegisterPresenter();
+  const bool present = registered && REXCVAR_GET(native_gpu_present);
+  g_renderer->EndFrame(present ? g_front_buffer : 0);
+  if (const uint32_t* pixels = present ? g_renderer->presented() : nullptr) {
+    std::lock_guard<std::mutex> lock(g_frame_mutex);
+    g_frame_width = g_renderer->presented_width();
+    g_frame_height = g_renderer->presented_height();
+    g_frame.assign(pixels, pixels + size_t(g_frame_width) * g_frame_height);
+  }
   static const auto first_frame = std::chrono::steady_clock::now();
   static bool dumped = false;
   const int32_t seconds = REXCVAR_GET(native_gpu_dump_seconds);
@@ -259,6 +348,7 @@ void LiveRendererOnSwap(uint8_t* base) {
   if (triggered || (!dumped && seconds > 0 &&
                     std::chrono::steady_clock::now() - first_frame >= std::chrono::seconds(seconds))) {
     dumped = true;
+    g_renderer->WaitIdle();
     std::vector<uint8_t> rgba;
     uint32_t width = 0, height = 0;
     if (g_renderer->ReadResolved(g_front_buffer, rgba, width, height)) {
