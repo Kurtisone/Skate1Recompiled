@@ -5,7 +5,9 @@
 // resolve, render target, viewport and tiling call with its arguments, the
 // D3D device shadow (registers, constants, fetch
 // constants, bound shaders), the shaders' cache keys, the guest memory the
-// pointer arguments point at (all taken after the call), the inline vertices of BeginVertices /
+// pointer arguments point at (all taken after the call), the vertex shader's
+// physical part as patched for each draw, the indices of indexed draws, the
+// inline vertices of BeginVertices /
 // EndVertices, and at the end the whole physical memory (<path>.phys, sparse)
 // for vertex/index buffers and textures. tools/d3d/capture.py reads it; the
 // native renderer is developed against it offline (milestone B).
@@ -69,8 +71,8 @@ void Write(const void* data, size_t size) { std::fwrite(data, 1, size, g_file); 
 void Write32(uint32_t value) { Write(&value, 4); }
 
 uint64_t ShaderKey(uint8_t* base, uint32_t device_offset, bool pixel) {
-  const ShaderCacheEntry* entry = FindShaderForObject(REX_LOAD_U32(kDevice + device_offset), pixel);
-  return entry ? entry->hash : 0;
+  const ShaderObject object = FindShaderObject(REX_LOAD_U32(kDevice + device_offset), pixel);
+  return object.entry ? object.entry->hash : 0;
 }
 
 bool IsPointer(uint32_t address) { return address >= 0x40000000 && address < 0xA0000000; }
@@ -78,6 +80,23 @@ bool IsPointer(uint32_t address) { return address >= 0x40000000 && address < 0xA
 void RecordEvent(uint32_t function, const PPCContext& ctx, uint8_t* base, uint32_t result,
                  const std::vector<Blob>& extra) {
   std::vector<Blob> blobs = extra;
+  if (function == 0x82CB38E8 || function == 0x82CB3500 || function == 0x82CB2E78) {
+    // The vertex shader's physical part as D3D patched it for this draw's
+    // streams (the vertex fetch formats, strides and offsets).
+    const uint32_t vertex = REX_LOAD_U32(kDevice + 12688);
+    if (vertex) {
+      blobs.push_back({REX_LOAD_U32(vertex + 32), FindShaderObject(vertex, false).physical_size});
+    }
+    // DrawIndexedVertices(device, prim, base vertex, start index, count): the
+    // index buffer object (+0 bit 31 = 32-bit indices, +24 data) and the
+    // indices the draw reads.
+    const uint32_t indices = REX_LOAD_U32(kDevice + 12428);
+    if (function == 0x82CB38E8 && indices) {
+      const uint32_t index_size = (REX_LOAD_U32(indices) >> 31) ? 4 : 2;
+      blobs.push_back({indices, 32});
+      blobs.push_back({REX_LOAD_U32(indices + 24), (ctx.r6.u32 + ctx.r7.u32) * index_size});
+    }
+  }
   const uint32_t args[] = {ctx.r4.u32, ctx.r5.u32, ctx.r6.u32, ctx.r7.u32};
   for (uint32_t arg : args) {
     if (IsPointer(arg)) {

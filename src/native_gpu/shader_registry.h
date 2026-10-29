@@ -12,6 +12,12 @@ struct ShaderCacheEntry;
 
 void StartShaderRegistry(rex::memory::Memory* memory);
 
-// The recompiled shader for a shader object the game passed to
-// SetPixelShader / SetVertexShader, or nullptr if the cache does not have it.
-const ShaderCacheEntry* FindShaderForObject(uint32_t object, bool pixel);
+struct ShaderObject {
+  // The recompiled shader, or nullptr if the cache does not have it.
+  const ShaderCacheEntry* entry = nullptr;
+  // Size of the physical part (literal constants, then the microcode).
+  uint32_t physical_size = 0;
+};
+
+// A shader object the game passed to SetPixelShader / SetVertexShader.
+ShaderObject FindShaderObject(uint32_t object, bool pixel);

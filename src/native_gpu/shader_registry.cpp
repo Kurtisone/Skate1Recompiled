@@ -43,7 +43,7 @@ namespace {
 rex::memory::Memory* g_memory = nullptr;
 
 std::mutex g_mutex;
-std::unordered_map<uint32_t, const ShaderCacheEntry*> g_objects;
+std::unordered_map<uint32_t, ShaderObject> g_objects;
 uint32_t g_misses = 0;
 
 const ShaderCacheEntry* FindEntry(uint64_t hash) {
@@ -67,7 +67,7 @@ void OnCreate(uint8_t* base, uint32_t object, uint32_t container) {
   const uint64_t hash = XXH3_64bits(base + container + virtual_size + REX_LOAD_U32(shader), size);
   const ShaderCacheEntry* entry = FindEntry(hash);
   std::lock_guard<std::mutex> lock(g_mutex);
-  g_objects[object] = entry;
+  g_objects[object] = {entry, REX_LOAD_U32(container + 8)};
   if (entry) {
     if (REXCVAR_GET(native_gpu_shader_log)) {
       REXLOG_INFO("native_gpu: {} shader {:016X} object {:08X}", pixel ? "pixel" : "vertex",
@@ -89,12 +89,12 @@ void OnCreate(uint8_t* base, uint32_t object, uint32_t container) {
   }
 }
 
-const ShaderCacheEntry* OnSet(uint32_t object, bool pixel) {
+ShaderObject OnSet(uint32_t object, bool pixel) {
   if (!g_memory || !object) {
-    return nullptr;
+    return {};
   }
   std::lock_guard<std::mutex> lock(g_mutex);
-  auto [it, inserted] = g_objects.try_emplace(object, nullptr);
+  auto [it, inserted] = g_objects.try_emplace(object);
   if (inserted) {
     REXLOG_WARN("native_gpu: {} shader object {:08X} was not created through the hooked "
                 "helpers", pixel ? "pixel" : "vertex", object);
@@ -109,9 +109,7 @@ void StartShaderRegistry(rex::memory::Memory* memory) {
   REXLOG_INFO("native_gpu: shader cache has {} shaders", g_shaderCacheEntryCount);
 }
 
-const ShaderCacheEntry* FindShaderForObject(uint32_t object, bool pixel) {
-  return OnSet(object, pixel);
-}
+ShaderObject FindShaderObject(uint32_t object, bool pixel) { return OnSet(object, pixel); }
 
 // Shader object helpers (object, size, &info), info[0] = container.
 REX_HOOK_RAW(sub_82CC1038) {
