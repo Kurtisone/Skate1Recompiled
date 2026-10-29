@@ -261,6 +261,18 @@ inline int32_t TiledOffset2D(int32_t x, int32_t y, uint32_t pitch, uint32_t byte
          (((((y & 8) >> 2) + (x >> 3)) & 3) << 6) + (offset & 0x3F);
 }
 
+// Bytes of guest memory a texture's base level spans (tiled slices padded to
+// 32x32-block tiles and 4 KB), for write watching.
+inline uint32_t TextureByteSize(const TextureFetch& t) {
+  const TextureBlock block = GetTextureBlock(t.format);
+  const uint32_t bytes = block.bytes ? block.bytes : 4;
+  const uint32_t pitch_blocks = (std::max(t.pitch, t.width) + block.size - 1) / block.size;
+  const uint32_t blocks_y = (t.height + block.size - 1) / block.size;
+  const uint32_t slice = (((pitch_blocks + 31) & ~31u) * ((blocks_y + 31) & ~31u) * bytes + 4095) & ~4095u;
+  const uint32_t slices = t.dimension == 2 ? ((t.depth + 3) & ~3u) : t.depth;
+  return slice * std::max(slices, 1u);
+}
+
 // Offset of block (x, y, z) in a tiled 3D volume (pitch and height in
 // blocks), from the SDK's texture util (XGRAPHICS::TileVolume).
 inline int32_t TiledOffset3D(int32_t x, int32_t y, int32_t z, uint32_t pitch, uint32_t height,

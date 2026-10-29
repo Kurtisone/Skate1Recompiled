@@ -38,8 +38,8 @@ struct DrawCall {
   // The vertex shader's physical part as D3D patched it for this draw.
   const uint8_t* vs_physical = nullptr;
   uint32_t vs_physical_size = 0;
-  // Indexed draws: the guest indices from 0 (big-endian), and their size.
-  const uint8_t* indices = nullptr;
+  // Indexed draws: the guest index buffer (physical address, size in bytes).
+  uint32_t indices_address = 0;
   uint32_t indices_size = 0;
   bool indices_32bit = false;
   // BeginVertices / EndVertices: the vertices written into the command buffer.
@@ -69,12 +69,26 @@ struct ResolveCall {
   int32_t dest_y = 0;
 };
 
+// Tells the renderer when the game writes guest memory it has converted
+// (textures, vertex and index buffers), so it converts them again. Physical
+// addresses.
+class WriteWatcher {
+ public:
+  virtual ~WriteWatcher() = default;
+  // Clears the range's written state and watches it for writes.
+  virtual void Watch(uint32_t address, uint32_t size) = 0;
+  // Whether the range was written to since it was watched.
+  virtual bool Dirty(uint32_t address, uint32_t size) = 0;
+};
+
 class Renderer {
  public:
   // `physical` is the guest physical memory; `container` returns the shader
-  // container (big-endian) for a cache key, for the vertex elements.
+  // container (big-endian) for a cache key, for the vertex elements;
+  // `watcher` may be null (guest memory never changes, as in a replay).
   bool Initialize(plume::RenderDevice* device, const uint8_t* physical,
-                  std::function<const uint8_t*(uint64_t key)> container);
+                  std::function<const uint8_t*(uint64_t key)> container,
+                  WriteWatcher* watcher = nullptr);
 
   void BeginFrame();
   void Draw(const DrawCall& call);
@@ -111,6 +125,9 @@ class Renderer {
 
   Shader* GetShader(uint64_t key);
   Texture* GetGuestTexture(const xenos::TextureFetch& fetch);
+  // A guest vertex or index buffer converted to host order by `convert`.
+  const plume::RenderBuffer* GetGuestBuffer(uint32_t address, uint32_t size, uint64_t layout,
+                                            const std::function<void(uint8_t*)>& convert);
   uint32_t GetSampler(const xenos::TextureFetch& fetch);
   Texture& GetColorSurface(const xenos::DeviceState& state);
   Texture& GetDepthSurface(const xenos::DeviceState& state);
@@ -121,7 +138,14 @@ class Renderer {
   void SetMainLayout();
   uint64_t Allocate(const void* data, uint64_t size, uint64_t alignment = 256);
 
+  struct GuestBuffer {
+    std::unique_ptr<plume::RenderBuffer> buffer;
+  };
+
   plume::RenderDevice* device_ = nullptr;
+  WriteWatcher* watcher_ = nullptr;
+  std::unordered_map<uint64_t, GuestBuffer> guest_buffers_;
+  std::vector<std::unique_ptr<plume::RenderBuffer>> retired_buffers_;
   const uint8_t* physical_ = nullptr;
   std::function<const uint8_t*(uint64_t)> container_;
   std::vector<uint8_t> spirv_;

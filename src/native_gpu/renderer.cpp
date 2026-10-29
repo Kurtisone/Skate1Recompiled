@@ -90,13 +90,14 @@ RenderFormat VertexFormat(const xenos::VertexFetchInstruction& fetch, uint32_t u
       if (usage == 2) {  // BLENDINDICES: uint4
         return s ? RenderFormat::R8G8B8A8_SINT : RenderFormat::R8G8B8A8_UINT;
       }
-      // TODO: integer bytes read as floats need USCALED, which plume lacks.
-      return s ? RenderFormat::R8G8B8A8_SNORM : RenderFormat::R8G8B8A8_UNORM;
+      // Integer components feed float4 inputs as their values (scaled).
+      return i ? (s ? RenderFormat::R8G8B8A8_SSCALED : RenderFormat::R8G8B8A8_USCALED)
+               : (s ? RenderFormat::R8G8B8A8_SNORM : RenderFormat::R8G8B8A8_UNORM);
     case k_16_16:
-      return i ? (s ? RenderFormat::R16G16_SINT : RenderFormat::R16G16_UINT)
+      return i ? (s ? RenderFormat::R16G16_SSCALED : RenderFormat::R16G16_USCALED)
                : (s ? RenderFormat::R16G16_SNORM : RenderFormat::R16G16_UNORM);
     case k_16_16_16_16:
-      return i ? (s ? RenderFormat::R16G16B16A16_SINT : RenderFormat::R16G16B16A16_UINT)
+      return i ? (s ? RenderFormat::R16G16B16A16_SSCALED : RenderFormat::R16G16B16A16_USCALED)
                : (s ? RenderFormat::R16G16B16A16_SNORM : RenderFormat::R16G16B16A16_UNORM);
     case k_16_16_FLOAT: return RenderFormat::R16G16_FLOAT;
     case k_16_16_16_16_FLOAT: return RenderFormat::R16G16B16A16_FLOAT;
@@ -194,8 +195,9 @@ void CopySwapped32(uint8_t* dst, const uint8_t* src, size_t bytes) {
 }  // namespace
 
 bool Renderer::Initialize(RenderDevice* device, const uint8_t* physical,
-                          std::function<const uint8_t*(uint64_t key)> container) {
+                          std::function<const uint8_t*(uint64_t key)> container, WriteWatcher* watcher) {
   device_ = device;
+  watcher_ = watcher;
   physical_ = physical;
   container_ = std::move(container);
   // The game's cache is stored uncompressed (XENOS_RECOMP_NO_ZSTD, no zstd in
@@ -348,6 +350,7 @@ void Renderer::EndFrame() {
   queue_->executeCommandLists(lists, 1, nullptr, 0, nullptr, 0, fence_.get());
   queue_->waitForCommandFence(fence_.get());
   retired_framebuffers_.clear();
+  retired_buffers_.clear();
   retired_views_.clear();
   retired_textures_.clear();
 }
@@ -385,6 +388,30 @@ Renderer::Shader* Renderer::GetShader(uint64_t key) {
   return info.entry ? &info : nullptr;
 }
 
+const RenderBuffer* Renderer::GetGuestBuffer(uint32_t address, uint32_t size, uint64_t layout,
+                                             const std::function<void(uint8_t*)>& convert) {
+  const uint64_t key = XXH3_64bits_withSeed(&address, 4, layout ^ uint64_t(size) << 32);
+  GuestBuffer& cached = guest_buffers_[key];
+  if (cached.buffer && !(watcher_ && watcher_->Dirty(address, size))) {
+    return cached.buffer.get();
+  }
+  if (cached.buffer) {
+    // Written to by the game: the frame may still use the old copy.
+    retired_buffers_.push_back(std::move(cached.buffer));
+    ++stats_["buffers re-uploaded"];
+  } else {
+    ++stats_["buffers"];
+  }
+  if (watcher_) watcher_->Watch(address, size);
+  cached.buffer = device_->createBuffer(
+      RenderBufferDesc::UploadBuffer(std::max(size, 4u), RenderBufferFlag::VERTEX | RenderBufferFlag::INDEX));
+  uint8_t* data = static_cast<uint8_t*>(cached.buffer->map());
+  std::memcpy(data, physical_ + address, size);
+  convert(data);
+  cached.buffer->unmap();
+  return cached.buffer.get();
+}
+
 uint32_t Renderer::GetSampler(const xenos::TextureFetch& t) {
   RenderSamplerDesc desc;
   auto address = [](uint32_t clamp) {
@@ -419,7 +446,18 @@ Renderer::Texture* Renderer::GetGuestTexture(const xenos::TextureFetch& t) {
                              t.width, t.height, t.depth, t.swizzle, t.is_signed};
   auto [it, inserted] = guest_textures_.try_emplace(XXH3_64bits(fields, sizeof(fields)));
   Texture& guest = it->second;
-  if (!inserted) return guest.texture ? &guest : nullptr;
+  const uint32_t byteSize = xenos::TextureByteSize(t);
+  if (!inserted) {
+    if (!guest.texture || !(watcher_ && watcher_->Dirty(t.address & 0x1FFFFFFF, byteSize))) {
+      return guest.texture ? &guest : nullptr;
+    }
+    // Written to by the game: upload again into a new texture, same slot.
+    layouts_.erase(guest.texture.get());
+    retired_textures_.push_back(std::move(guest.texture));
+    retired_views_.push_back(std::move(guest.view));
+    ++stats_["textures re-uploaded"];
+  }
+  if (watcher_) watcher_->Watch(t.address & 0x1FFFFFFF, byteSize);
   guest.dimension = t.dimension;
   const RenderFormat format = TextureFormat(t);
   if (t.dimension == 2 && format != RenderFormat::UNKNOWN) {
@@ -445,9 +483,9 @@ Renderer::Texture* Renderer::GetGuestTexture(const xenos::TextureFetch& t) {
     view.mipLevels = 1;
     view.componentMapping = SwizzleMapping(t.swizzle);
     guest.view = guest.texture->createTextureView(view);
-    guest.index = next_3d_++;
+    if (!guest.index) guest.index = next_3d_++;
     texture_3d_set_->setTexture(guest.index, guest.texture.get(), RenderTextureLayout::SHADER_READ, guest.view.get());
-    ++stats_["textures (3D)"];
+    if (inserted) ++stats_["textures (3D)"];
     return &guest;
   }
   if ((t.dimension != 1 && t.dimension != 3) || format == RenderFormat::UNKNOWN) {
@@ -481,10 +519,10 @@ Renderer::Texture* Renderer::GetGuestTexture(const xenos::TextureFetch& t) {
   view.mipLevels = 1;
   view.componentMapping = SwizzleMapping(t.swizzle);
   guest.view = guest.texture->createTextureView(view);
-  guest.index = cube ? next_cube_++ : next_2d_++;
+  if (!guest.index) guest.index = cube ? next_cube_++ : next_2d_++;
   (cube ? texture_cube_set_ : texture_2d_set_)
       ->setTexture(guest.index, guest.texture.get(), RenderTextureLayout::SHADER_READ, guest.view.get());
-  ++stats_[cube ? "textures (cube)" : "textures (2D)"];
+  if (inserted) ++stats_[cube ? "textures (cube)" : "textures (2D)"];
   return &guest;
 }
 
@@ -663,7 +701,7 @@ void Renderer::Draw(const DrawCall& call) {
       ++stats_["draw skipped: primitive " + std::to_string(call.primitive)];
       return;
   }
-  if (quads && call.indices) {
+  if (quads && call.indices_size) {
     ++stats_["draw skipped: indexed quad list"];
     return;
   }
@@ -731,21 +769,33 @@ void Renderer::Draw(const DrawCall& call) {
   std::vector<RenderVertexBufferView> vertexViews;
   for (uint32_t slot = 0; slot < slotFetch.size(); ++slot) {
     const xenos::VertexFetch fetch = xenos::DecodeVertexFetch(state, slotFetch[slot]);
-    const uint8_t* source = call.inline_vertices ? call.inline_vertices : physical_ + (fetch.address & 0x1FFFFFFF);
-    const uint32_t size = call.inline_vertices ? call.inline_size : fetch.size;
-    const uint64_t at = Allocate(source, size, 16);
-    xenos::SwapEndian(upload_memory_ + at, size, call.inline_vertices ? 2 : fetch.endian);
     const uint32_t stride = inputSlots[slot].stride;
-    for (const auto& [offset, dwords] : halfSwaps[slot]) {
-      for (uint32_t vertex = 0; stride && (vertex + 1) * stride <= size; ++vertex) {
-        uint8_t* p = upload_memory_ + at + vertex * stride + offset;
-        for (uint32_t d = 0; d < dwords; ++d, p += 4) {
-          std::swap(p[0], p[2]);
-          std::swap(p[1], p[3]);
+    auto convert = [&](uint8_t* data, uint32_t size, uint32_t endian) {
+      xenos::SwapEndian(data, size, endian);
+      for (const auto& [offset, dwords] : halfSwaps[slot]) {
+        for (uint32_t vertex = 0; stride && (vertex + 1) * stride <= size; ++vertex) {
+          uint8_t* p = data + vertex * stride + offset;
+          for (uint32_t d = 0; d < dwords; ++d, p += 4) {
+            std::swap(p[0], p[2]);
+            std::swap(p[1], p[3]);
+          }
         }
       }
+    };
+    if (call.inline_vertices) {
+      // Inline vertices live in the command buffer: converted every time.
+      const uint64_t at = Allocate(call.inline_vertices, call.inline_size, 16);
+      convert(upload_memory_ + at, call.inline_size, 2);
+      vertexViews.push_back({upload_->at(at), call.inline_size});
+      continue;
     }
-    vertexViews.push_back({upload_->at(at), size});
+    // Guest vertex buffers are converted once and kept until written to.
+    uint64_t layout = XXH3_64bits_withSeed(halfSwaps[slot].data(),
+                                  halfSwaps[slot].size() * sizeof(halfSwaps[slot][0]), stride);
+    const uint32_t address = fetch.address & 0x1FFFFFFF;
+    const RenderBuffer* buffer = GetGuestBuffer(address, fetch.size, layout ^ fetch.endian,
+                                                [&](uint8_t* data) { convert(data, fetch.size, fetch.endian); });
+    vertexViews.push_back({buffer, fetch.size});
   }
 
   // Textures (resolved ones by address first) and samplers.
@@ -849,10 +899,11 @@ void Renderer::Draw(const DrawCall& call) {
   commands_->setPipeline(pipeline.get());
   commands_->setGraphicsPushConstants(0, pushConstants);
   commands_->setVertexBuffers(0, vertexViews.data(), uint32_t(vertexViews.size()), inputSlots.data());
-  if (call.indices) {
-    const uint64_t at = Allocate(call.indices, call.indices_size, 16);
-    xenos::SwapEndian(upload_memory_ + at, call.indices_size, call.indices_32bit ? 2 : 1);
-    RenderIndexBufferView view{upload_->at(at), call.indices_size,
+  if (call.indices_size) {
+    const RenderBuffer* buffer =
+        GetGuestBuffer(call.indices_address, call.indices_size, call.indices_32bit ? 2 : 1,
+                       [&](uint8_t* data) { xenos::SwapEndian(data, call.indices_size, call.indices_32bit ? 2 : 1); });
+    RenderIndexBufferView view{buffer, call.indices_size,
                                call.indices_32bit ? RenderFormat::R32_UINT : RenderFormat::R16_UINT};
     commands_->setIndexBuffer(&view);
     commands_->drawIndexedInstanced(call.count, 1, call.start, int32_t(call.base_vertex), 0);

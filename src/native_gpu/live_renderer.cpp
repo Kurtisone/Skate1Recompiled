@@ -10,8 +10,11 @@
 #include "live_renderer.h"
 
 #include <algorithm>
+#include <array>
+#include <atomic>
 #include <chrono>
 #include <cstring>
+#include <filesystem>
 #include <climits>
 #include <cstdio>
 #include <memory>
@@ -35,13 +38,69 @@ REXCVAR_DEFINE_INT32(native_gpu_dump_seconds, 0, "Skate1",
                      "Write the native front buffer this many seconds after the first frame "
                      "(0 = never)");
 REXCVAR_DEFINE_STRING(native_gpu_dump_path, "native_frame.ppm", "Skate1",
-                      "Where native_gpu_dump_seconds writes the front buffer (PPM)");
+                      "Where native_gpu_dump_seconds writes the front buffer (PPM); creating "
+                      "<path>.trigger also writes the next frame");
 
 namespace {
 
 constexpr uint32_t kDevice = 0x40002200;
 
+rex::memory::Memory* g_memory = nullptr;
 std::unique_ptr<native_gpu::Renderer> g_renderer;
+
+// Write watching through the physical memory access callbacks (the emulated
+// GPU's shared memory uses the same ones): one dirty bit per 4 KB page.
+class PhysicalWriteWatcher : public native_gpu::WriteWatcher {
+ public:
+  explicit PhysicalWriteWatcher(rex::memory::Memory* memory) : memory_(memory) {
+    handle_ = memory_->RegisterPhysicalMemoryInvalidationCallback(&OnWrite, this);
+  }
+  ~PhysicalWriteWatcher() override { memory_->UnregisterPhysicalMemoryInvalidationCallback(handle_); }
+
+  void Watch(uint32_t address, uint32_t size) override {
+    ForPages(address, size, [&](uint32_t word, uint64_t mask) {
+      dirty_[word].fetch_and(~mask, std::memory_order_relaxed);
+    });
+    memory_->EnablePhysicalMemoryAccessCallbacks(address, size, true, false);
+  }
+
+  bool Dirty(uint32_t address, uint32_t size) override {
+    bool dirty = false;
+    ForPages(address, size, [&](uint32_t word, uint64_t mask) {
+      dirty |= (dirty_[word].load(std::memory_order_relaxed) & mask) != 0;
+    });
+    return dirty;
+  }
+
+ private:
+  static constexpr uint32_t kPages = 0x20000000 >> 12;
+
+  template <typename F>
+  static void ForPages(uint32_t address, uint32_t size, F&& f) {
+    if (!size) return;
+    const uint32_t first = (address & 0x1FFFFFFF) >> 12;
+    const uint32_t last = std::min(kPages - 1, ((address & 0x1FFFFFFF) + size - 1) >> 12);
+    for (uint32_t page = first; page <= last;) {
+      const uint32_t word = page >> 6, bit = page & 63;
+      const uint32_t count = std::min(64 - bit, last - page + 1);
+      f(word, (count == 64 ? ~0ull : ((1ull << count) - 1)) << bit);
+      page += count;
+    }
+  }
+
+  static std::pair<uint32_t, uint32_t> OnWrite(void* context, uint32_t start, uint32_t length, bool) {
+    auto* self = static_cast<PhysicalWriteWatcher*>(context);
+    ForPages(start, length, [&](uint32_t word, uint64_t mask) {
+      self->dirty_[word].fetch_or(mask, std::memory_order_relaxed);
+    });
+    return {0, UINT32_MAX};
+  }
+
+  rex::memory::Memory* memory_;
+  void* handle_ = nullptr;
+  std::array<std::atomic<uint64_t>, kPages / 64> dirty_{};
+};
+std::unique_ptr<PhysicalWriteWatcher> g_watcher;
 uint32_t g_front_buffer = 0;
 uint32_t g_inline_vertices = 0;
 uint32_t g_inline_primitive = 0;
@@ -73,8 +132,10 @@ void WritePpm(const std::string& path, const std::vector<uint8_t>& rgba, uint32_
 
 void StartLiveRenderer(plume::RenderDevice* device, rex::memory::Memory* memory) {
   if (!REXCVAR_GET(native_gpu_render)) return;
+  g_memory = memory;
+  g_watcher = std::make_unique<PhysicalWriteWatcher>(memory);
   g_renderer = std::make_unique<native_gpu::Renderer>();
-  if (!g_renderer->Initialize(device, memory->TranslatePhysical(0), FindShaderContainer)) {
+  if (!g_renderer->Initialize(device, memory->TranslatePhysical(0), FindShaderContainer, g_watcher.get())) {
     REXLOG_ERROR("native_gpu: renderer initialization failed");
     g_renderer.reset();
     return;
@@ -120,11 +181,12 @@ void LiveRendererOnCall(uint32_t function, const PPCContext& before, uint32_t re
         call.base_vertex = before.r5.u32;
         call.start = before.r6.u32;
         call.count = before.r7.u32;
+        // Index buffer object: +0 bit 31 = 32-bit indices, +24 data, +28 size.
         const uint32_t indices = REX_LOAD_U32(kDevice + xenos::device::kIndexBuffer);
         if (!indices) break;
         call.indices_32bit = REX_LOAD_U32(indices) >> 31;
-        call.indices = base + REX_LOAD_U32(indices + 24);
-        call.indices_size = (call.start + call.count) * (call.indices_32bit ? 4 : 2);
+        call.indices_address = g_memory->GetPhysicalAddress(REX_LOAD_U32(indices + 24));
+        call.indices_size = REX_LOAD_U32(indices + 28);
       } else {
         call.primitive = before.r4.u32;
         call.start = before.r5.u32;
@@ -191,8 +253,11 @@ void LiveRendererOnSwap(uint8_t* base) {
   static const auto first_frame = std::chrono::steady_clock::now();
   static bool dumped = false;
   const int32_t seconds = REXCVAR_GET(native_gpu_dump_seconds);
-  if (!dumped && seconds > 0 &&
-      std::chrono::steady_clock::now() - first_frame >= std::chrono::seconds(seconds)) {
+  const std::string trigger = REXCVAR_GET(native_gpu_dump_path) + ".trigger";
+  std::error_code error;
+  const bool triggered = std::filesystem::remove(trigger, error);
+  if (triggered || (!dumped && seconds > 0 &&
+                    std::chrono::steady_clock::now() - first_frame >= std::chrono::seconds(seconds))) {
     dumped = true;
     std::vector<uint8_t> rgba;
     uint32_t width = 0, height = 0;

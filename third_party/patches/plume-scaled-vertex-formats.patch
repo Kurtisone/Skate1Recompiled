@@ -1,0 +1,81 @@
+diff --git a/plume_render_interface_types.h b/plume_render_interface_types.h
+index eeb193b..a5d35e4 100644
+--- a/plume_render_interface_types.h
++++ b/plume_render_interface_types.h
+@@ -160,6 +160,13 @@ namespace plume {
+         BC7_TYPELESS,
+         BC7_UNORM,
+         BC7_UNORM_SRGB,
++        // Vertex input only: integers read as floats (Xbox 360 vertex fetch).
++        R8G8B8A8_USCALED,
++        R8G8B8A8_SSCALED,
++        R16G16_USCALED,
++        R16G16_SSCALED,
++        R16G16B16A16_USCALED,
++        R16G16B16A16_SSCALED,
+         MAX
+     };
+ 
+@@ -537,6 +544,8 @@ namespace plume {
+         case RenderFormat::R16G16B16A16_UINT:
+         case RenderFormat::R16G16B16A16_SNORM:
+         case RenderFormat::R16G16B16A16_SINT:
++        case RenderFormat::R16G16B16A16_USCALED:
++        case RenderFormat::R16G16B16A16_SSCALED:
+         case RenderFormat::R32G32_TYPELESS:
+         case RenderFormat::R32G32_FLOAT:
+         case RenderFormat::R32G32_UINT:
+@@ -548,6 +557,10 @@ namespace plume {
+         case RenderFormat::R8G8B8A8_UINT:
+         case RenderFormat::R8G8B8A8_SNORM:
+         case RenderFormat::R8G8B8A8_SINT:
++        case RenderFormat::R8G8B8A8_USCALED:
++        case RenderFormat::R8G8B8A8_SSCALED:
++        case RenderFormat::R16G16_USCALED:
++        case RenderFormat::R16G16_SSCALED:
+         case RenderFormat::B8G8R8A8_UNORM:
+         case RenderFormat::R16G16_TYPELESS:
+         case RenderFormat::R16G16_FLOAT:
+@@ -622,6 +635,8 @@ namespace plume {
+         case RenderFormat::R16G16B16A16_UINT:
+         case RenderFormat::R16G16B16A16_SNORM:
+         case RenderFormat::R16G16B16A16_SINT:
++        case RenderFormat::R16G16B16A16_USCALED:
++        case RenderFormat::R16G16B16A16_SSCALED:
+         case RenderFormat::R32G32_TYPELESS:
+         case RenderFormat::R32G32_FLOAT:
+         case RenderFormat::R32G32_UINT:
+@@ -631,6 +646,10 @@ namespace plume {
+         case RenderFormat::R8G8B8A8_UINT:
+         case RenderFormat::R8G8B8A8_SNORM:
+         case RenderFormat::R8G8B8A8_SINT:
++        case RenderFormat::R8G8B8A8_USCALED:
++        case RenderFormat::R8G8B8A8_SSCALED:
++        case RenderFormat::R16G16_USCALED:
++        case RenderFormat::R16G16_SSCALED:
+         case RenderFormat::B8G8R8A8_UNORM:
+         case RenderFormat::R16G16_TYPELESS:
+         case RenderFormat::R16G16_FLOAT:
+diff --git a/plume_vulkan.cpp b/plume_vulkan.cpp
+index 9103ca8..a03f57c 100644
+--- a/plume_vulkan.cpp
++++ b/plume_vulkan.cpp
+@@ -246,6 +246,18 @@ namespace plume {
+             return VK_FORMAT_BC7_UNORM_BLOCK;
+         case RenderFormat::BC7_UNORM_SRGB:
+             return VK_FORMAT_BC7_SRGB_BLOCK;
++        case RenderFormat::R8G8B8A8_USCALED:
++            return VK_FORMAT_R8G8B8A8_USCALED;
++        case RenderFormat::R8G8B8A8_SSCALED:
++            return VK_FORMAT_R8G8B8A8_SSCALED;
++        case RenderFormat::R16G16_USCALED:
++            return VK_FORMAT_R16G16_USCALED;
++        case RenderFormat::R16G16_SSCALED:
++            return VK_FORMAT_R16G16_SSCALED;
++        case RenderFormat::R16G16B16A16_USCALED:
++            return VK_FORMAT_R16G16B16A16_USCALED;
++        case RenderFormat::R16G16B16A16_SSCALED:
++            return VK_FORMAT_R16G16B16A16_SSCALED;
+         default:
+             assert(false && "Unknown format.");
+             return VK_FORMAT_UNDEFINED;
