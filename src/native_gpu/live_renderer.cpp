@@ -538,6 +538,8 @@ void LiveRendererOnSwap(uint8_t* base) {
     dumped = true;
     g_recording.dump = true;
   }
+  const size_t recorded_calls = g_recording.calls.size();
+  const size_t recorded_bytes = g_recording.arena.size();
   // Hand the frame over once the renderer thread has taken the previous one
   // (at most one frame queued behind the one being rendered).
   {
@@ -547,4 +549,7 @@ void LiveRendererOnSwap(uint8_t* base) {
   }
   g_queue_cv.notify_all();
   g_recording = Frame{};
+  // Frames look alike: growing the arena from nothing copies it again and again.
+  g_recording.calls.reserve(recorded_calls + recorded_calls / 4);
+  g_recording.arena.reserve(recorded_bytes + recorded_bytes / 4);
 }
