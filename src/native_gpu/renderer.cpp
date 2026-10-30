@@ -555,7 +555,15 @@ const RenderBuffer* Renderer::GetGuestBuffer(uint32_t address, uint32_t size, ui
                                              const std::function<void(uint8_t*)>& convert) {
   const uint64_t key = XXH3_64bits_withSeed(&address, 4, layout ^ uint64_t(size) << 32);
   GuestBuffer& cached = guest_buffers_[key];
-  if (cached.buffer && !(watcher_ && watcher_->Dirty(address, size))) {
+  if (cached.buffer && !(watcher_ && watcher_->Dirty(address, size, cached.watch_stamp))) {
+    static const bool verify = getenv("NATIVE_GPU_VERIFY_TEXTURES") != nullptr;  // debugging
+    if (verify) {
+      const uint64_t hash = XXH3_64bits(physical_ + address, size);
+      if (hash != cached.content_hash) {
+        fprintf(stderr, "STALE buffer %08X size %X stamp %u\n", address, size, cached.watch_stamp);
+        cached.content_hash = hash;
+      }
+    }
     return cached.buffer.get();
   }
   if (cached.buffer) {
@@ -565,7 +573,8 @@ const RenderBuffer* Renderer::GetGuestBuffer(uint32_t address, uint32_t size, ui
   } else {
     ++stats_["buffers"];
   }
-  if (watcher_) watcher_->Watch(address, size);
+  if (watcher_) cached.watch_stamp = watcher_->Watch(address, size);
+  cached.content_hash = XXH3_64bits(physical_ + address, size);
   cached.buffer = device_->createBuffer(
       RenderBufferDesc::UploadBuffer(std::max(size, 4u), RenderBufferFlag::VERTEX | RenderBufferFlag::INDEX));
   uint8_t* data = static_cast<uint8_t*>(cached.buffer->map());
@@ -607,13 +616,25 @@ uint32_t Renderer::GetSampler(const xenos::TextureFetch& t) {
 }
 
 Renderer::Texture* Renderer::GetGuestTexture(const xenos::TextureFetch& t) {
-  const uint32_t fields[] = {t.format, t.endian, t.tiled, t.pitch, t.address, t.dimension,
+  const uint32_t fields[] = {t.format, t.endian, t.tiled, t.pitch, t.address, t.mip_address, t.dimension,
                              t.width, t.height, t.depth, t.swizzle, t.is_signed};
   auto [it, inserted] = guest_textures_.try_emplace(XXH3_64bits(fields, sizeof(fields)));
   Texture& guest = it->second;
   const uint32_t byteSize = xenos::TextureByteSize(t);
   if (!inserted) {
-    if (!guest.texture || !(watcher_ && watcher_->Dirty(t.address & 0x1FFFFFFF, byteSize))) {
+    static const bool verify = getenv("NATIVE_GPU_VERIFY_TEXTURES") != nullptr;  // debugging
+    if (verify && guest.texture) {
+      const uint64_t hash = XXH3_64bits(physical_ + (t.address & 0x1FFFFFFF), byteSize);
+      if (hash != guest.content_hash &&
+          !(watcher_ && watcher_->Dirty(t.address & 0x1FFFFFFF, byteSize, guest.watch_stamp))) {
+        fprintf(stderr, "STALE %08X %ux%u fmt %u size %X stamp %u\n", t.address, t.width, t.height, t.format,
+                byteSize, guest.watch_stamp);
+        guest.content_hash = hash;
+      }
+    }
+    if (!guest.texture ||
+        !(watcher_ && (watcher_->Dirty(t.address & 0x1FFFFFFF, byteSize, guest.watch_stamp) ||
+                       (t.mip_address && watcher_->Dirty(t.mip_address & 0x1FFFFFFF, byteSize, guest.watch_stamp))))) {
       return guest.texture ? &guest : nullptr;
     }
     // Written to by the game: upload again into a new texture, same slot.
@@ -622,7 +643,12 @@ Renderer::Texture* Renderer::GetGuestTexture(const xenos::TextureFetch& t) {
     retired_views_.push_back(std::move(guest.view));
     ++stats_["textures re-uploaded"];
   }
-  if (watcher_) watcher_->Watch(t.address & 0x1FFFFFFF, byteSize);
+  // The mip chain lives elsewhere and fits in the size of level 0.
+  if (watcher_) {
+    guest.watch_stamp = watcher_->Watch(t.address & 0x1FFFFFFF, byteSize);
+    if (t.mip_address) watcher_->Watch(t.mip_address & 0x1FFFFFFF, byteSize);
+  }
+  guest.content_hash = XXH3_64bits(physical_ + (t.address & 0x1FFFFFFF), byteSize);
   guest.dimension = t.dimension;
   const RenderFormat format = TextureFormat(t);
   if (t.dimension == 2 && format != RenderFormat::UNKNOWN) {
@@ -831,6 +857,23 @@ void Renderer::Clear(const ClearCall& call) {
   ++stats_["clears"];
 }
 
+void Renderer::RetireResolved(Texture& dest) {
+  // Still referenced by recorded commands: keep it until the frame ends.
+  for (auto it = framebuffers_.begin(); it != framebuffers_.end();) {
+    if (it->first.first == dest.texture.get()) {
+      retired_framebuffers_.push_back(std::move(it->second));
+      it = framebuffers_.erase(it);
+    } else {
+      ++it;
+    }
+  }
+  if (current_targets_.first == dest.texture.get()) current_targets_ = {};
+  layouts_.erase(dest.texture.get());
+  retired_textures_.push_back(std::move(dest.texture));
+  retired_views_.push_back(std::move(dest.view));
+  for (auto& [swizzle, entry] : dest.swizzled_views) retired_views_.push_back(std::move(entry.first));
+}
+
 void Renderer::Resolve(const ResolveCall& call) {
   const bool depth = call.flags & 4;
   Texture& source = depth ? GetDepthSurface(call.state) : GetColorSurface(call.state);
@@ -866,22 +909,7 @@ void Renderer::Resolve(const ResolveCall& call) {
 
   Texture& dest = resolved_[address];
   if (!dest.texture || dest.format != format || dest.width != width || dest.height < height) {
-    if (dest.texture) {
-      // Still referenced by recorded commands: keep it until the frame ends.
-      for (auto it = framebuffers_.begin(); it != framebuffers_.end();) {
-        if (it->first.first == dest.texture.get()) {
-          retired_framebuffers_.push_back(std::move(it->second));
-          it = framebuffers_.erase(it);
-        } else {
-          ++it;
-        }
-      }
-      if (current_targets_.first == dest.texture.get()) current_targets_ = {};
-      layouts_.erase(dest.texture.get());
-      retired_textures_.push_back(std::move(dest.texture));
-      retired_views_.push_back(std::move(dest.view));
-      for (auto& [swizzle, entry] : dest.swizzled_views) retired_views_.push_back(std::move(entry.first));
-    }
+    if (dest.texture) RetireResolved(dest);
     dest.texture = device_->createTexture(RenderTextureDesc::ColorTarget(width, height, format));
     dest.format = format;
     dest.width = width;
@@ -1139,7 +1167,17 @@ void Renderer::Draw(const DrawCall& call) {
   for (uint32_t slot = 0; slot < 16; ++slot) {
     const xenos::TextureFetch t = xenos::DecodeTextureFetch(state, slot);
     if (!t.valid) continue;
-    if (auto resolved = resolved_.find(t.address); resolved != resolved_.end()) {
+    auto resolved = resolved_.find(t.address);
+    if (resolved != resolved_.end() && watcher_ &&
+        watcher_->Dirty(t.address & 0x1FFFFFFF, resolved->second.resolved_size,
+                        resolved->second.watch_stamp)) {
+      // Written by the game since it was resolved: the guest texture now.
+      RetireResolved(resolved->second);
+      resolved_.erase(resolved);
+      resolved = resolved_.end();
+      ++stats_["resolved textures overwritten by the game"];
+    }
+    if (resolved != resolved_.end()) {
       shared.texture2DIndices[slot] = ResolvedIndex(resolved->second, t.swizzle);
     } else if (Texture* texture = GetGuestTexture(t)) {
       (texture->dimension == 3   ? shared.textureCubeIndices

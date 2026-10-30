@@ -42,7 +42,7 @@
 
 REXCVAR_DEFINE_INT32(native_gpu_capture_seconds, 0, "Skate1",
                      "Capture the frame that starts this many seconds after the first Swap "
-                     "(0 = off)");
+                     "(0 = off, -1 = when <native_gpu_capture_path>.trigger appears)");
 REXCVAR_DEFINE_INT32(native_gpu_capture_cut_event, -1, "Skate1",
                      "Debugging the native renderer against the emulated GPU: past this event "
                      "of the captured frame, its draws, clears and resolves are not executed, "
@@ -165,13 +165,17 @@ void StartFrameCapture(rex::memory::Memory* memory) { g_memory = memory; }
 
 void FrameCaptureOnSwap(const PPCContext& ctx, uint8_t* base) {
   const int32_t seconds = REXCVAR_GET(native_gpu_capture_seconds);
-  if (!g_memory || seconds <= 0) {
+  if (!g_memory || seconds == 0) {
     return;
   }
   static const auto first_swap = std::chrono::steady_clock::now();
   std::lock_guard<std::mutex> lock(g_mutex);
-  if (g_state == State::kIdle &&
-      std::chrono::steady_clock::now() - first_swap >= std::chrono::seconds(seconds)) {
+  // Negative seconds: when <path>.trigger appears instead.
+  const bool due = seconds > 0
+                       ? std::chrono::steady_clock::now() - first_swap >= std::chrono::seconds(seconds)
+                       : g_state == State::kIdle &&
+                             std::remove((REXCVAR_GET(native_gpu_capture_path) + ".trigger").c_str()) == 0;
+  if (g_state == State::kIdle && due) {
     const std::string path = REXCVAR_GET(native_gpu_capture_path);
     g_file = std::fopen(path.c_str(), "wb");
     if (!g_file) {

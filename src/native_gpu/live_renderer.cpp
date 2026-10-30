@@ -1,3 +1,4 @@
+#include <unistd.h>
 // skate1 - native D3D layer: live rendering (see docs/native_d3d.md)
 //
 // native_gpu_render feeds the game's draws, clears, resolves and tiling
@@ -71,48 +72,54 @@ class PhysicalWriteWatcher : public native_gpu::WriteWatcher {
   }
   ~PhysicalWriteWatcher() override { memory_->UnregisterPhysicalMemoryInvalidationCallback(handle_); }
 
-  void Watch(uint32_t address, uint32_t size) override {
-    ForPages(address, size, [&](uint32_t word, uint64_t mask) {
-      dirty_[word].fetch_and(~mask, std::memory_order_relaxed);
-    });
+  uint32_t Watch(uint32_t address, uint32_t size) override {
+    // Writes before this stamp are in what the caller reads next; later ones
+    // fault (the pages are protected first) and get a newer sequence.
+    const uint32_t stamp = sequence_.load(std::memory_order_acquire);
     memory_->EnablePhysicalMemoryAccessCallbacks(address, size, true, false);
+    return stamp;
   }
 
-  bool Dirty(uint32_t address, uint32_t size) override {
-    bool dirty = false;
-    ForPages(address, size, [&](uint32_t word, uint64_t mask) {
-      dirty |= (dirty_[word].load(std::memory_order_relaxed) & mask) != 0;
-    });
-    return dirty;
+  bool Dirty(uint32_t address, uint32_t size, uint32_t stamp) override {
+    if (!size) return false;
+    const uint32_t first = (address & 0x1FFFFFFF) >> 12;
+    const uint32_t last = std::min(kPages - 1, ((address & 0x1FFFFFFF) + size - 1) >> 12);
+    for (uint32_t page = first; page <= last;) {
+      // Blocks of 64 pages keep their latest write, to skip unwritten ones.
+      if (blocks_[page >> 6].load(std::memory_order_relaxed) <= stamp) {
+        page = (page | 63) + 1;
+        continue;
+      }
+      if (pages_[page].load(std::memory_order_relaxed) > stamp) return true;
+      ++page;
+    }
+    return false;
   }
 
  private:
   static constexpr uint32_t kPages = 0x20000000 >> 12;
 
-  template <typename F>
-  static void ForPages(uint32_t address, uint32_t size, F&& f) {
-    if (!size) return;
-    const uint32_t first = (address & 0x1FFFFFFF) >> 12;
-    const uint32_t last = std::min(kPages - 1, ((address & 0x1FFFFFFF) + size - 1) >> 12);
-    for (uint32_t page = first; page <= last;) {
-      const uint32_t word = page >> 6, bit = page & 63;
-      const uint32_t count = std::min(64 - bit, last - page + 1);
-      f(word, (count == 64 ? ~0ull : ((1ull << count) - 1)) << bit);
-      page += count;
-    }
-  }
-
   static std::pair<uint32_t, uint32_t> OnWrite(void* context, uint32_t start, uint32_t length, bool) {
     auto* self = static_cast<PhysicalWriteWatcher*>(context);
-    ForPages(start, length, [&](uint32_t word, uint64_t mask) {
-      self->dirty_[word].fetch_or(mask, std::memory_order_relaxed);
-    });
-    return {0, UINT32_MAX};
+    // What to stop watching: (0, UINT32_MAX) would unwatch the surrounding 4 MB
+    // and with it everything else converted there.
+    if (!length) return {start, 0};
+    const uint32_t sequence = self->sequence_.fetch_add(1, std::memory_order_acq_rel) + 1;
+    const uint32_t first = (start & 0x1FFFFFFF) >> 12;
+    const uint32_t last = std::min(kPages - 1, ((start & 0x1FFFFFFF) + length - 1) >> 12);
+    for (uint32_t page = first; page <= last; ++page) {
+      self->pages_[page].store(sequence, std::memory_order_relaxed);
+      self->blocks_[page >> 6].store(sequence, std::memory_order_relaxed);
+    }
+    return {start, length};
   }
 
   rex::memory::Memory* memory_;
   void* handle_ = nullptr;
-  std::array<std::atomic<uint64_t>, kPages / 64> dirty_{};
+  std::atomic<uint32_t> sequence_{1};
+  // The sequence of the last write to each page, and to each 64 pages.
+  std::array<std::atomic<uint32_t>, kPages> pages_{};
+  std::array<std::atomic<uint32_t>, kPages / 64> blocks_{};
 };
 std::unique_ptr<PhysicalWriteWatcher> g_watcher;
 

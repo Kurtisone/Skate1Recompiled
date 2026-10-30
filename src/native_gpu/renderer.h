@@ -83,10 +83,11 @@ struct ResolveCall {
 class WriteWatcher {
  public:
   virtual ~WriteWatcher() = default;
-  // Clears the range's written state and watches it for writes.
-  virtual void Watch(uint32_t address, uint32_t size) = 0;
-  // Whether the range was written to since it was watched.
-  virtual bool Dirty(uint32_t address, uint32_t size) = 0;
+  // Watches the range for writes, before its contents are read; returns the
+  // stamp to pass to Dirty. Ranges may overlap, each has its own stamp.
+  virtual uint32_t Watch(uint32_t address, uint32_t size) = 0;
+  // Whether the range was written to since the Watch that returned `stamp`.
+  virtual bool Dirty(uint32_t address, uint32_t size, uint32_t stamp) = 0;
 };
 
 class Renderer {
@@ -151,8 +152,13 @@ class Renderer {
     // their heap indices.
     std::unordered_map<uint32_t, std::pair<std::unique_ptr<plume::RenderTextureView>, uint32_t>>
         swizzled_views;
+    uint32_t resolved_size = 0;  // the guest memory a resolve writes
+    uint64_t content_hash = 0;   // guest textures, NATIVE_GPU_VERIFY_TEXTURES
+    uint32_t watch_stamp = 0;    // guest and resolved textures: WriteWatcher::Watch's
   };
   uint32_t ResolvedIndex(Texture& texture, uint32_t swizzle);
+  // Releases a resolved texture once the recording frame has completed.
+  void RetireResolved(Texture& texture);
 
   Shader* GetShader(uint64_t key);
   Texture* GetGuestTexture(const xenos::TextureFetch& fetch);
@@ -176,6 +182,8 @@ class Renderer {
 
   struct GuestBuffer {
     std::unique_ptr<plume::RenderBuffer> buffer;
+    uint64_t content_hash = 0;  // NATIVE_GPU_VERIFY_TEXTURES
+    uint32_t watch_stamp = 0;
   };
 
   plume::RenderDevice* device_ = nullptr;
