@@ -1,0 +1,28 @@
+From 11a26de5371207cb70c16f8842139664cc9e86ba Mon Sep 17 00:00:00 2001
+From: Kurtisone <104103601+Kurtisone@users.noreply.github.com>
+Date: Fri, 30 Oct 2026 07:20:24 +0100
+Subject: [PATCH] Keep a custom Vulkan loader given to volk
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_0153cG7p2WTXCR84twmVnaCR
+---
+ plume_vulkan.cpp | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/plume_vulkan.cpp b/plume_vulkan.cpp
+index a03f57c..f69a34b 100644
+--- a/plume_vulkan.cpp
++++ b/plume_vulkan.cpp
+@@ -4410,7 +4410,8 @@ namespace plume {
+ #else
+     VulkanInterface::VulkanInterface() {
+ #endif
+-        VkResult res = volkInitialize();
++        // Keep a loader the app gave volk with volkInitializeCustom (custom driver).
++        VkResult res = (vkGetInstanceProcAddr != nullptr) ? VK_SUCCESS : volkInitialize();
+         if (res != VK_SUCCESS) {
+             fprintf(stderr, "volkInitialize failed with error code 0x%X.\n", res);
+             return;
+-- 
+2.56.0
+

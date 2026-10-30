@@ -6,7 +6,11 @@
 # build (this never runs codegen). The game files are not in the APK: copy
 # game/ and skate1.toml to the device as out/android/package/README.txt says.
 #
-#   tools/android/build.sh   ->  out/android/package/skate1.apk
+#   tools/android/build.sh            ->  out/android/package/skate1.apk
+#   NATIVE=1 tools/android/build.sh   ->  out/android-native/package/skate1.apk
+#                                         native D3D layer on (docs/native_d3d.md);
+#                                         needs out/native/shader_cache.cpp
+#                                         (tools/d3d/build_shader_cache.sh)
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -17,9 +21,17 @@ BUILD_TOOLS="$ANDROID_SDK/build-tools/35.0.0"
 PLATFORM_JAR="$ANDROID_SDK/platforms/android-35/android.jar"
 LLVM="$ANDROID_NDK/toolchains/llvm/prebuilt/linux-x86_64"
 SDL_PROJECT=third_party/rexglue-sdk/thirdparty/sdl3/android-project
-BUILD=out/android/game
-WORK=out/android/apk
-PACKAGE=out/android/package
+OUT=out/android
+NATIVE_ARGS=(-DSKATE1_NATIVE_GPU=OFF)
+OVERRIDES=(tools/android/android-overrides.toml)
+if [[ "${NATIVE:-0}" == 1 ]]; then
+  OUT=out/android-native
+  NATIVE_ARGS=(-DSKATE1_NATIVE_GPU=ON)
+  OVERRIDES+=(tools/android/native-overrides.toml)
+fi
+BUILD=$OUT/game
+WORK=$OUT/apk
+PACKAGE=$OUT/package
 KEYSTORE="${KEYSTORE:-$HOME/Android/skate1-debug.keystore}"
 # ARMv8.2 (Snapdragon 845 and later): LSE atomics instead of LL/SC loops, for
 # the runtime's locks and the recompiled code's atomics.
@@ -35,7 +47,7 @@ cmake -S tools/android -B "$BUILD" -G Ninja -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_TOOLCHAIN_FILE="$ANDROID_NDK/build/cmake/android.toolchain.cmake" \
   -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-29 -DANDROID_STL=c++_shared \
   "-DCMAKE_C_FLAGS=$ARCH_FLAGS" "-DCMAKE_CXX_FLAGS=$ARCH_FLAGS" \
-  -DREXGLUE_ENABLE_TRACY=OFF -DREXGLUE_ENABLE_PERF_COUNTERS=OFF
+  -DREXGLUE_ENABLE_TRACY=OFF -DREXGLUE_ENABLE_PERF_COUNTERS=OFF "${NATIVE_ARGS[@]}"
 cmake --build "$BUILD" --target main
 
 rm -rf "$WORK" && mkdir -p "$WORK/lib/arm64-v8a" "$WORK/classes" "$WORK/res"
@@ -102,14 +114,16 @@ rm -rf "$PACKAGE" && mkdir -p "$PACKAGE"
   --out "$PACKAGE/skate1.apk" "$WORK/aligned.apk"
 
 # 5. Config for the device: desktop settings, then the Android overrides.
-python3 - config/skate1.runtime.toml tools/android/android-overrides.toml "$PACKAGE/skate1.toml" <<'PY'
+python3 - config/skate1.runtime.toml "${OVERRIDES[@]}" "$PACKAGE/skate1.toml" <<'PY'
 import re, sys
-base, over, out = sys.argv[1:4]
+base, overs, out = sys.argv[1], sys.argv[2:-1], sys.argv[-1]
 key = lambda l: re.match(r'\s*([A-Za-z0-9_]+)\s*=', l)
-over_lines = open(over).read().splitlines()
-over_keys = {key(l).group(1) for l in over_lines if key(l)}
-kept = [l for l in open(base).read().splitlines() if not (key(l) and key(l).group(1) in over_keys)]
-open(out, 'w').write('\n'.join(kept + [''] + over_lines) + '\n')
+lines = open(base).read().splitlines()
+for over in overs:
+    over_lines = open(over).read().splitlines()
+    over_keys = {key(l).group(1) for l in over_lines if key(l)}
+    lines = [l for l in lines if not (key(l) and key(l).group(1) in over_keys)] + [''] + over_lines
+open(out, 'w').write('\n'.join(lines) + '\n')
 PY
 cat > "$PACKAGE/README.txt" <<'TXT'
 skate1 for Android (arm64)

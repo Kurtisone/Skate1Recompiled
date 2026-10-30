@@ -1,0 +1,14 @@
+# Native D3D layer (docs/native_d3d.md), applied after android-overrides.toml
+# by NATIVE=1 tools/android/build.sh. The game's draws are rendered natively
+# (XenosRecomp shaders on plume) and shown through the presenter; the emulated
+# GPU only processes the command buffers. Set all four back to false to use
+# the emulated GPU.
+native_gpu = true
+native_gpu_render = true
+native_gpu_present = true
+gpu_skip_guest_draws = true
+# Same settings as the Deck's native package.
+scene_msaa_off = true
+frame_rate_cap = 30
+# guest_output.ppm is a diagnostic of the emulated path.
+capture_guest_output_seconds = 0

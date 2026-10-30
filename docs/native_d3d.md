@@ -169,6 +169,11 @@ recorded (state snapshot per call) and rendered at Swap on a renderer
 thread, since the game may fill vertices after a draw (the console GPU
 reads them later); 3-4 ms/frame left on the render thread.
 
+Android (2026-10-30): NATIVE=1 tools/android/build.sh builds the native APK
+into out/android-native/package (tools/android/native-overrides.toml); plume
+goes through the SDK's custom driver handle so both Vulkan users load the same
+driver. Built but not run on a device yet.
+
 Milestone B: replay one captured frame offscreen with plume and save it next
 to the emulated frame on the headless benchmark for comparison.
 

@@ -7,6 +7,11 @@
 #include <memory>
 
 #include <plume_render_interface.h>
+#ifdef __ANDROID__
+#include <dlfcn.h>
+
+#include <volk.h>
+#endif
 
 #include <rex/cvar.h>
 #include <rex/logging.h>
@@ -24,6 +29,12 @@ namespace plume {
 std::unique_ptr<RenderInterface> CreateVulkanInterface();
 }
 
+#ifdef __ANDROID__
+namespace rex::ui::vulkan {
+void* GetLoaderLibraryOverride();
+}
+#endif
+
 namespace {
 std::unique_ptr<plume::RenderInterface> g_interface;
 std::unique_ptr<plume::RenderDevice> g_device;
@@ -35,6 +46,14 @@ void StartNativeGpu(rex::Runtime* runtime) {
   }
   StartShaderRegistry(runtime->memory());
   StartFrameCapture(runtime->memory());
+#ifdef __ANDROID__
+  // A custom driver (adrenotools) is only reachable through the SDK's handle.
+  if (void* driver = rex::ui::vulkan::GetLoaderLibraryOverride()) {
+    if (auto proc = reinterpret_cast<PFN_vkGetInstanceProcAddr>(dlsym(driver, "vkGetInstanceProcAddr"))) {
+      volkInitializeCustom(proc);
+    }
+  }
+#endif
   g_interface = plume::CreateVulkanInterface();
   if (!g_interface) {
     REXLOG_ERROR("native_gpu: no Vulkan interface");

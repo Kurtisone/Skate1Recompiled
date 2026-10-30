@@ -46,6 +46,38 @@ rexglue_apply_target_settings(main)
 target_compile_options(main PRIVATE -march=armv8.2-a)
 rexglue_configure_target(main GPU_PLUGINS xenos)
 
+# Native D3D layer (docs/native_d3d.md), with NATIVE=1 tools/android/build.sh.
+option(SKATE1_NATIVE_GPU "Build the native D3D layer" OFF)
+if(SKATE1_NATIVE_GPU)
+    add_subdirectory("${SKATE1_ROOT}/third_party/plume" plume)
+    # Recompiled shaders, generated from the game's own files (not
+    # distributable): tools/d3d/build_shader_cache.sh.
+    set(SKATE1_SHADER_CACHE "${SKATE1_ROOT}/out/native/shader_cache.cpp"
+        CACHE FILEPATH "XenosRecomp shader cache for the native D3D layer")
+    if(NOT EXISTS "${SKATE1_SHADER_CACHE}")
+        message(FATAL_ERROR "SKATE1_NATIVE_GPU needs ${SKATE1_SHADER_CACHE}: run tools/d3d/build_shader_cache.sh")
+    endif()
+    target_sources(main PRIVATE
+        "${SKATE1_ROOT}/src/d3d_trace.cpp"
+        "${SKATE1_ROOT}/src/d3d_trace_runtime.cpp"
+        "${SKATE1_ROOT}/src/scene_tiling.cpp"
+        "${SKATE1_ROOT}/src/frame_cap.cpp"
+        "${SKATE1_ROOT}/src/native_gpu/native_gpu.cpp"
+        "${SKATE1_ROOT}/src/native_gpu/frame_capture.cpp"
+        "${SKATE1_ROOT}/src/native_gpu/live_renderer.cpp"
+        "${SKATE1_ROOT}/src/native_gpu/renderer.cpp"
+        "${SKATE1_ROOT}/src/native_gpu/shader_registry.cpp"
+        "${SKATE1_ROOT}/third_party/smol-v/smolv.cpp"
+        "${SKATE1_SHADER_CACHE}")
+    set_source_files_properties("${SKATE1_SHADER_CACHE}" PROPERTIES
+        INCLUDE_DIRECTORIES "${SKATE1_ROOT}/src/native_gpu")
+    target_compile_definitions(main PRIVATE SKATE1_NATIVE_GPU=1)
+    target_link_libraries(main PRIVATE plume)
+    target_include_directories(main PRIVATE
+        "${SKATE1_ROOT}/src/native_gpu" "${SKATE1_ROOT}/third_party/plume"
+        "${SKATE1_ROOT}/third_party/smol-v")
+endif()
+
 # Custom Vulkan drivers (Turnip, newer Qualcomm drivers) through adrenotools:
 # SDL_main loads one from the game folder's driver/ when present; the hook
 # libraries ship in the APK next to libmain.so.
