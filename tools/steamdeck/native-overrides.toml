@@ -1,5 +1,5 @@
 # Native D3D layer (docs/native_d3d.md), applied after deck-overrides.toml by
-# NATIVE=1 tools/steamdeck/build.sh. Work in progress: no shadows yet.
+# NATIVE=1 tools/steamdeck/build.sh.
 # The game's draws are rendered natively (XenosRecomp shaders on plume) and
 # shown through the presenter; the emulated GPU only processes the command
 # buffers. Set all four back to false to use the emulated GPU.

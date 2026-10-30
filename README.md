@@ -1,7 +1,7 @@
 # Skate1Recompiled
 
-An unofficial native PC port of **skate** (EA Black Box, 2007) for Windows, made by
-statically recompiling the Xbox 360 executable to C++ with
+An unofficial native port of **skate** (EA Black Box, 2007) for Windows, Linux
+(Steam Deck) and Android, made by statically recompiling the Xbox 360 executable to C++ with
 [ReXGlue](https://github.com/rexglue/rexglue-sdk) v0.10.0, carrying the changes of
 [rexglue-skate3](https://github.com/mchughalex/rexglue-skate3), the SDK fork used by
 the Skate 3 PC recompilation. Same approach as Skate2Port.
@@ -11,7 +11,9 @@ Everything derived from the game (extracted files, decrypted image, generated C+
 is produced locally and is ignored by git.
 
 Status: boots, intro videos, menus, audio, career start and Freeskate all work.
-See [NOTES.md](NOTES.md) for the boot log, fixes and how Skate 1 differs from Skate 2.
+The main menu has a quit entry (`main_menu_quit = false` removes it).
+See [NOTES.md](NOTES.md) for the boot log, fixes and how Skate 1 differs from Skate 2,
+and [docs/native_d3d.md](docs/native_d3d.md) for the native renderer.
 
 ## Building
 
@@ -90,6 +92,21 @@ next to the `skate1` binary. Copy `config/skate1.runtime.toml` there as
 `skate1.toml` and put the extracted `game/` folder beside it, or point
 `game_data_root` at it. The `d3d12_*` settings are ignored on macOS.
 
+### Steam Deck and Android
+
+Both need the game extracted to `game/` and, for the native renderer, the shader
+cache from `tools/d3d/build_shader_cache.sh`.
+
+```sh
+tools/steamdeck/build.sh            # out/steamdeck/skate1 (podman or docker)
+NATIVE=1 tools/steamdeck/build.sh   # out/steamdeck-native/skate1, native renderer
+tools/android/build.sh              # out/android/package/skate1.apk
+NATIVE=1 tools/android/build.sh     # same, native renderer (not run on a device yet)
+```
+
+Each package has a README.txt with the install steps. The Android build needs
+`generated/` from a desktop build, NDK r29 and the Android SDK 35.
+
 ## SDK
 
 `third_party/rexglue-sdk` is upstream rexglue-sdk v0.10.0 with the rexglue-skate3
@@ -120,8 +137,10 @@ Linux builds of SDL need the X11 development headers, including libXi
 | `skate1_manifest.toml` | ReXGlue project manifest |
 | `config/skate1_functions.toml` | setjmp/longjmp and function boundary overrides |
 | `config/skate1.runtime.toml` | runtime settings to copy next to the exe |
-| `src/` | app shell (portable path handling) |
-| `tools/` | ISO extractor, codegen/build/run loop, missed-function scanners, screenshot and input scripts |
+| `src/` | app shell, game hooks (frame cap, single-pass scene, quit entry) |
+| `src/native_gpu/` | native D3D renderer (plume + XenosRecomp shaders) |
+| `docs/` | native renderer notes, D3D function map |
+| `tools/` | ISO extractor, codegen/build/run loop, missed-function scanners, screenshot and input scripts, Deck and Android builds, frame replayer (`native_replay`) |
 
 ## Credits
 

@@ -1,4 +1,28 @@
-# Native D3D layer (plan)
+# Native D3D layer
+
+## Current state (2026-10-30)
+
+Works in game on Linux, off by default (`NATIVE=1` Deck and Android builds; the
+Android one has not run on a device). 30 FPS on the Ryzen 5500U with the Deck
+settings, about 53 without the cap, in free skate. The rest of this file is the
+history of the work, so older "missing" lists are out of date.
+
+Open: the torso lag, a neon green foliage frame seen once. Debugging: capture
+with `native_gpu_capture_seconds` (-1 = on `<path>.trigger`), `tools/native_replay`
+(`REPLAY_REPEAT`, `REPLAY_SKIP`, `REPLAY_DUMP`), `NATIVE_GPU_VERIFY_TEXTURES`,
+`NATIVE_GPU_TRACE_SKIPS`. The log reports issues as `native_gpu: ... (Nx)`; the FPS
+overlay's gpu and wait figures are the emulated GPU thread's, idle here.
+
+Findings:
+
+- Surfaces overlapping in EDRAM are separate host textures: tiles another surface
+  wrote are cleared, or foliage keeps last frame's alpha and bloom accumulates.
+- Write watch callbacks must return the written range: (0, UINT32_MAX) unwatches
+  the surrounding 4 MB.
+- Vertex microcode is the shader object's physical part, copied at draw time since
+  D3D repatches it. Parsing IM_LOAD packets lost loads.
+- A replaced texture takes a new descriptor slot: recorded draws keep the old one.
+- Write faults must not query host mappings (/proc/self/maps parsing cost 10-20 FPS).
 
 Goal: replace the game's statically linked Xbox 360 D3D (XDK 2.0.5632) with a
 native Vulkan implementation, as Unleashed Recompiled does, instead of
