@@ -223,7 +223,7 @@ void Capture(uint32_t function, uint32_t trace_index, PPCContext& ctx, uint8_t* 
   const uint32_t packets_start = REX_LOAD_U32(kDevice + 48);  // command buffer write pointer
   if (!skip) original(ctx, base);
   const uint32_t packets_end = REX_LOAD_U32(kDevice + 48);
-  LiveRendererOnCall(function, before, ctx.r3.u32, base, packets_start);
+  LiveRendererOnCall(function, before, ctx.r3.u32, base);
   std::lock_guard<std::mutex> lock(g_mutex);
   if (g_state == State::kCapturing) {
     std::vector<Blob> blobs;
@@ -234,8 +234,7 @@ void Capture(uint32_t function, uint32_t trace_index, PPCContext& ctx, uint8_t* 
       blobs.push_back({g_inline_vertices, g_inline_size});
       g_inline_vertices = 0;
     }
-    // The packets the call wrote (the draw's IM_LOAD names the microcode the
-    // GPU runs), last; the replay finds them by their end, device+48.
+    // The packets the call wrote, last.
     if (packets_end > packets_start && packets_end - packets_start < 0x10000) {
       blobs.push_back({packets_start + 4, packets_end - packets_start});
     }

@@ -159,10 +159,11 @@ need XenosRecomp's SPEC_CONSTANT_HALF_NORMAL. Missing: shadows, mips,
 
 Matching the emulated GPU (2026-10-29): readback_resolve = full captures
 with native_gpu_capture_cut_event keep the emulated GPU's intermediate
-results (tools/d3d/guest_texture.py decodes them). Findings: D3D loads a
-relinked copy of each vertex shader (IM_LOAD in the draw's packets) whose
-vertex fetches may write other registers than the container's, so fetches
-are matched by destination register and components; the world's specular
+results (tools/d3d/guest_texture.py decodes them). Findings: D3D relinks
+each vertex shader's physical part in place (what IM_LOAD loads, 99.94% of
+draws by address, the rest being stale parses): its vertex fetches may write
+other registers than the container's, so fetches are matched by destination
+register and components; the world's specular
 sheen was maxed out before (reversed normals: 'too much bloom'). The MJC
 scene now matches the emulated one to the unit. The frame's calls are
 recorded (state snapshot per call) and rendered at Swap on a renderer

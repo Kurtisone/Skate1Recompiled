@@ -245,9 +245,6 @@ void StartLiveRenderer(plume::RenderDevice* device, rex::memory::Memory* memory)
 // Time spent in the renderer on the game's render thread, for the stats line.
 std::chrono::steady_clock::duration g_renderer_time{};
 
-// The vertex microcode the GPU runs (the last IM_LOAD D3D wrote).
-uint32_t g_vs_microcode = 0, g_vs_microcode_size = 0;
-
 // The frame's calls, rendered at Swap: on the console the GPU only reads
 // vertices, indices and textures when it runs the frame, and the game may
 // fill them after issuing a draw (the skater's cloth). Each call keeps a copy
@@ -261,6 +258,8 @@ struct DeferredCall {
   native_gpu::ClearCall clear;
   native_gpu::ResolveCall resolve;
   size_t inline_vertices = SIZE_MAX;  // copied into the arena (the command buffer is reused)
+  // Copied too: D3D patches it for each vertex layout during the frame.
+  size_t vs_physical = SIZE_MAX;
 };
 // A recorded frame, rendered by the renderer thread.
 struct Frame {
@@ -287,6 +286,7 @@ void RenderDeferredCalls(Frame& frame) {
         if (call.inline_vertices != SIZE_MAX) {
           call.draw.inline_vertices = frame.arena.data() + call.inline_vertices;
         }
+        if (call.vs_physical != SIZE_MAX) call.draw.vs_physical = frame.arena.data() + call.vs_physical;
         g_renderer->Draw(call.draw);
         break;
       case DeferredCall::Kind::kClear:
@@ -358,23 +358,8 @@ void RendererThread() {
 }
 
 
-void LiveRendererOnCall(uint32_t function, const PPCContext& before, uint32_t result, uint8_t* base,
-                        uint32_t packets_start) {
+void LiveRendererOnCall(uint32_t function, const PPCContext& before, uint32_t result, uint8_t* base) {
   if (!g_renderer) return;
-  const uint32_t packets_end = REX_LOAD_U32(kDevice + 48);
-  // Packets written since the previous hooked call (by other D3D functions
-  // or the game), then by this call. The write pointer points at the last
-  // dword written; a jump to another buffer segment loses the gap.
-  static uint32_t previous_end = 0;
-  if (previous_end && packets_start > previous_end && packets_start - previous_end < 0x10000) {
-    xenos::FindVertexShaderLoad(base + previous_end + 4, packets_start - previous_end, g_vs_microcode,
-                                g_vs_microcode_size);
-  }
-  if (packets_end > packets_start && packets_end - packets_start < 0x10000) {
-    xenos::FindVertexShaderLoad(base + packets_start + 4, packets_end - packets_start, g_vs_microcode,
-                                g_vs_microcode_size);
-  }
-  previous_end = packets_end;
   const auto start = std::chrono::steady_clock::now();
   struct Timer {
     std::chrono::steady_clock::time_point start;
@@ -402,10 +387,6 @@ void LiveRendererOnCall(uint32_t function, const PPCContext& before, uint32_t re
       if (vs) {
         call.vs_physical = base + REX_LOAD_U32(vs + 32);
         call.vs_physical_size = vertex.physical_size;
-      }
-      if (g_vs_microcode) {
-        call.vs_microcode = g_memory->TranslatePhysical(g_vs_microcode);
-        call.vs_microcode_size = g_vs_microcode_size;
       }
       if (function == 0x82CB2E78) {
         if (!g_inline_vertices) break;
@@ -437,6 +418,13 @@ void LiveRendererOnCall(uint32_t function, const PPCContext& before, uint32_t re
           deferred.inline_vertices = arena.size();
           arena.insert(arena.end(), call.inline_vertices, call.inline_vertices + call.inline_size);
         }
+        const auto copy = [](const uint8_t* data, size_t size) {
+          std::vector<uint8_t>& arena = g_recording.arena;
+          const size_t offset = arena.size();
+          arena.insert(arena.end(), data, data + size);
+          return offset;
+        };
+        if (call.vs_physical) deferred.vs_physical = copy(call.vs_physical, call.vs_physical_size);
         g_recording.calls.push_back(deferred);
       }
       break;

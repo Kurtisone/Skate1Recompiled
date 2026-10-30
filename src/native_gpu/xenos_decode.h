@@ -173,38 +173,6 @@ inline void SwapEndian(uint8_t* data, size_t size, uint32_t endian) {
   }
 }
 
-// Scans PM4 packets (big-endian dwords) for the last vertex shader IM_LOAD:
-// returns true and its physical address and size in bytes.
-inline bool FindVertexShaderLoad(const uint8_t* packets, size_t size, uint32_t& address, uint32_t& bytes) {
-  bool found = false;
-  size_t pos = 0;
-  while (pos + 4 <= size) {
-    const uint32_t header = LoadBE32(packets + pos);
-    const uint32_t type = header >> 30;
-    if (type == 3) {
-      const uint32_t count = ((header >> 16) & 0x3FFF) + 1;
-      const uint32_t opcode = (header >> 8) & 0x7F;
-      if (opcode == 0x27 && count >= 2 && pos + 12 <= size) {  // IM_LOAD
-        const uint32_t addr_type = LoadBE32(packets + pos + 4);
-        const uint32_t start_size = LoadBE32(packets + pos + 8);
-        if ((addr_type & 3) == 0) {  // vertex
-          address = addr_type & ~3u;
-          bytes = (start_size & 0xFFFF) * 4;
-          found = true;
-        }
-      }
-      pos += 4 + size_t(count) * 4;
-    } else if (type == 0) {
-      pos += 4 + size_t(((header >> 16) & 0x3FFF) + 1) * 4;
-    } else if (type == 1) {
-      pos += 12;
-    } else {
-      pos += 4;  // type 2: nop
-    }
-  }
-  return found;
-}
-
 // Texture fetch constant (6 dwords, xe_gpu_texture_fetch_t in the SDK).
 struct TextureFetch {
   bool valid;         // type == texture

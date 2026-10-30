@@ -38,11 +38,6 @@ struct DrawCall {
   // The vertex shader's physical part as D3D patched it for this draw.
   const uint8_t* vs_physical = nullptr;
   uint32_t vs_physical_size = 0;
-  // Better: the vertex microcode the GPU runs, from the draw's IM_LOAD packet
-  // (D3D keeps patched copies per vertex layout; the object's own physical
-  // part may hold another layout's patch). Instructions from the start.
-  const uint8_t* vs_microcode = nullptr;
-  uint32_t vs_microcode_size = 0;
   // Indexed draws: the guest index buffer (physical address, size in bytes).
   uint32_t indices_address = 0;
   uint32_t indices_size = 0;

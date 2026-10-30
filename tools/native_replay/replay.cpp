@@ -191,17 +191,10 @@ int main(int argc, char** argv) {
   renderer.BeginFrame();
   resolveTargets.clear();
   const Event* begin = nullptr;  // last BeginVertices
-  uint32_t vsMicrocode = 0, vsMicrocodeSize = 0;  // the last vertex IM_LOAD
   for (size_t i = first; i <= last; ++i) {
     const Event& e = events[i];
     if (skip.count(i)) continue;
     const xenos::DeviceState state{e.device.data()};
-    // The packets the call wrote end at the write pointer (device+48).
-    for (const Blob& blob : e.blobs) {
-      if (blob.address + blob.data.size() == state.U32(48) + 4) {
-        xenos::FindVertexShaderLoad(blob.data.data(), blob.data.size(), vsMicrocode, vsMicrocodeSize);
-      }
-    }
     switch (e.function) {
       case kBeginVertices:
         begin = &e;
@@ -243,13 +236,12 @@ int main(int argc, char** argv) {
             call.count = e.regs[3];
           }
         }
+        // The packets the call wrote come before the shader; they end at the
+        // write pointer (device+48).
+        if (e.blobs.size() > blob && e.blobs[blob].address + e.blobs[blob].data.size() == state.U32(48) + 4) ++blob;
         if (e.blobs.size() > blob) {
           call.vs_physical = e.blobs[blob].data.data();
           call.vs_physical_size = uint32_t(e.blobs[blob].data.size());
-        }
-        if (vsMicrocode) {
-          call.vs_microcode = physical + (vsMicrocode & 0x1FFFFFFF);
-          call.vs_microcode_size = vsMicrocodeSize;
         }
         renderer.Draw(call);
         break;

@@ -998,10 +998,6 @@ void Renderer::Draw(const DrawCall& call) {
     ++stats_["draw skipped: shader not in cache"];
     return;
   }
-  if (!call.vs_physical && !call.vs_microcode) {
-    ++stats_["draw skipped: no vertex microcode"];
-    return;
-  }
 
   // Vertex input from the patched vfetch instructions.
   std::vector<RenderInputElement> inputElements;
@@ -1013,46 +1009,33 @@ void Renderer::Draw(const DrawCall& call) {
   std::vector<std::vector<std::pair<uint32_t, uint32_t>>> halfSwaps;
   uint32_t lastStride = 0, lastSlot = 0;
   bool packedNormals = false, halfNormals = false;
-  // The loaded microcode (IM_LOAD) belongs to this shader if it holds a
-  // fetch for at least one element (same destination register and
-  // components); otherwise it is another shader's (a load we missed) and the
-  // object's own copy is used.
-  bool useLoaded = false;
-  for (const Shader::Element& element : vs->elements) {
-    for (const Shader::Element& other : vs->elements) {
-      const size_t candidate = other.address * 12;
-      if (call.vs_microcode && candidate + 12 <= call.vs_microcode_size &&
-          (xenos::LoadBE32(call.vs_microcode + candidate) & 0x1F) == 0 &&
-          ((xenos::LoadBE32(call.vs_microcode + candidate) >> 12) & 0x3F) == element.dst_register &&
-          (xenos::LoadBE32(call.vs_microcode + candidate + 4) & 0xFFF) == element.dst_swizzle) {
-        useLoaded = true;
-      }
+  // What the GPU loads is the object's physical part as D3D patched it.
+  static const bool traceSkips = getenv("NATIVE_GPU_TRACE_SKIPS") != nullptr;  // debugging
+  const auto traceSkip = [&](const char* why) {
+    if (traceSkips) {
+      fprintf(stderr, "SKIP %s vs %016llX ps %016llX prim %u count %u\n", why, (unsigned long long)call.vs_key,
+              (unsigned long long)call.ps_key, call.primitive, call.count);
     }
-  }
-  if (call.vs_microcode && !useLoaded) ++stats_["vertex microcode: IM_LOAD did not match the shader"];
-  if (!useLoaded && !call.vs_physical) {
+  };
+  if (!call.vs_physical) {
     ++stats_["draw skipped: no vertex microcode"];
     return;
   }
-  const uint8_t* microcode = useLoaded ? call.vs_microcode : call.vs_physical + vs->microcode_offset;
-  const size_t microcodeSize = useLoaded ? call.vs_microcode_size
-                                         : call.vs_physical_size - std::min<size_t>(call.vs_physical_size,
-                                                                                    vs->microcode_offset);
+  const uint8_t* microcode = call.vs_physical + vs->microcode_offset;
+  const size_t microcodeSize = call.vs_physical_size - std::min<size_t>(call.vs_physical_size, vs->microcode_offset);
   for (const Shader::Element& element : vs->elements) {
     // D3D relinks the vertex fetches it loads (registers may move between
     // fetch instructions): use the fetch writing the element's original
     // destination register and components, among the elements' fetch slots.
     size_t at = element.address * 12;
-    if (useLoaded) {
-      for (const Shader::Element& other : vs->elements) {
-        const size_t candidate = other.address * 12;
-        if (candidate + 12 <= microcodeSize &&
-            ((xenos::LoadBE32(microcode + candidate) >> 12) & 0x3F) == element.dst_register &&
-            (xenos::LoadBE32(microcode + candidate + 4) & 0xFFF) == element.dst_swizzle &&
-            (xenos::LoadBE32(microcode + candidate) & 0x1F) == 0) {
-          at = candidate;
-          break;
-        }
+    for (const Shader::Element& other : vs->elements) {
+      const size_t candidate = other.address * 12;
+      if (candidate + 12 <= microcodeSize &&
+          ((xenos::LoadBE32(microcode + candidate) >> 12) & 0x3F) == element.dst_register &&
+          (xenos::LoadBE32(microcode + candidate + 4) & 0xFFF) == element.dst_swizzle &&
+          (xenos::LoadBE32(microcode + candidate) & 0x1F) == 0) {
+        at = candidate;
+        break;
       }
     }
     if (at + 12 > microcodeSize) {
@@ -1062,6 +1045,7 @@ void Renderer::Draw(const DrawCall& call) {
     xenos::VertexFetchInstruction fetch = xenos::DecodeVertexFetchInstruction(microcode + at);
     if (!fetch.is_vfetch) {
       ++stats_["draw skipped: vertex element is not a vfetch"];
+      traceSkip("notvfetch");
       return;
     }
     if (fetch.is_mini) {
