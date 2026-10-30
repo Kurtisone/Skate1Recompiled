@@ -1,0 +1,8 @@
+# Native D3D layer (docs/native_d3d.md) on top of android-overrides.toml, for
+# NATIVE=1 tools/android/build.sh. Same settings as tools/steamdeck/native-overrides.toml.
+# Not tested on a device yet. The emulated GPU only processes the command
+# buffers; the game's draws are rendered by plume on the Vulkan device.
+native_gpu = true
+native_gpu_render = true
+native_gpu_present = true
+gpu_skip_guest_draws = true

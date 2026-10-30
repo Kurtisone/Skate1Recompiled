@@ -7,6 +7,9 @@
 # game/ and skate1.toml to the device as out/android/package/README.txt says.
 #
 #   tools/android/build.sh   ->  out/android/package/skate1.apk
+#   NATIVE=1 tools/android/build.sh  ->  the same, with the native D3D layer
+#     (docs/native_d3d.md; needs out/native/shader_cache.cpp) and its settings
+#     from tools/android/android-native-overrides.toml. Not tested on a device yet.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -17,7 +20,13 @@ BUILD_TOOLS="$ANDROID_SDK/build-tools/35.0.0"
 PLATFORM_JAR="$ANDROID_SDK/platforms/android-35/android.jar"
 LLVM="$ANDROID_NDK/toolchains/llvm/prebuilt/linux-x86_64"
 SDL_PROJECT=third_party/rexglue-sdk/thirdparty/sdl3/android-project
+NATIVE="${NATIVE:-0}"
 BUILD=out/android/game
+OVERRIDES=tools/android/android-overrides.toml
+if [[ "$NATIVE" == 1 ]]; then
+  BUILD=out/android/game-native
+  OVERRIDES="$OVERRIDES tools/android/android-native-overrides.toml"
+fi
 WORK=out/android/apk
 PACKAGE=out/android/package
 KEYSTORE="${KEYSTORE:-$HOME/Android/skate1-debug.keystore}"
@@ -32,6 +41,7 @@ fi
 
 # 1. Native libraries.
 cmake -S tools/android -B "$BUILD" -G Ninja -DCMAKE_BUILD_TYPE=Release \
+  -DSKATE1_NATIVE_GPU="$([[ "$NATIVE" == 1 ]] && echo ON || echo OFF)" \
   -DCMAKE_TOOLCHAIN_FILE="$ANDROID_NDK/build/cmake/android.toolchain.cmake" \
   -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-29 -DANDROID_STL=c++_shared \
   "-DCMAKE_C_FLAGS=$ARCH_FLAGS" "-DCMAKE_CXX_FLAGS=$ARCH_FLAGS" \
@@ -102,11 +112,12 @@ rm -rf "$PACKAGE" && mkdir -p "$PACKAGE"
   --out "$PACKAGE/skate1.apk" "$WORK/aligned.apk"
 
 # 5. Config for the device: desktop settings, then the Android overrides.
-python3 - config/skate1.runtime.toml tools/android/android-overrides.toml "$PACKAGE/skate1.toml" <<'PY'
+python3 - config/skate1.runtime.toml $OVERRIDES "$PACKAGE/skate1.toml" <<'PY'
 import re, sys
-base, over, out = sys.argv[1:4]
+base, out = sys.argv[1], sys.argv[-1]
+over = sys.argv[2:-1]
 key = lambda l: re.match(r'\s*([A-Za-z0-9_]+)\s*=', l)
-over_lines = open(over).read().splitlines()
+over_lines = [l for f in over for l in open(f).read().splitlines()]
 over_keys = {key(l).group(1) for l in over_lines if key(l)}
 kept = [l for l in open(base).read().splitlines() if not (key(l) and key(l).group(1) in over_keys)]
 open(out, 'w').write('\n'.join(kept + [''] + over_lines) + '\n')

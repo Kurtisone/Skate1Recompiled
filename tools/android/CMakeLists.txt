@@ -46,6 +46,35 @@ rexglue_apply_target_settings(main)
 target_compile_options(main PRIVATE -march=armv8.2-a)
 rexglue_configure_target(main GPU_PLUGINS xenos)
 
+# Native D3D layer (docs/native_d3d.md), as on the desktop build: the game's
+# draws go to plume's Vulkan device instead of the emulated GPU plugin. Needs
+# out/native/shader_cache.cpp (tools/d3d/build_shader_cache.sh) and plume.
+option(SKATE1_NATIVE_GPU "Build the native D3D layer into libmain.so" OFF)
+if(SKATE1_NATIVE_GPU)
+    if(NOT EXISTS "${SKATE1_ROOT}/out/native/shader_cache.cpp")
+        message(FATAL_ERROR "SKATE1_NATIVE_GPU needs out/native/shader_cache.cpp: run tools/d3d/build_shader_cache.sh")
+    endif()
+    add_subdirectory("${SKATE1_ROOT}/third_party/plume" plume)
+    set(SKATE1_NATIVE_SOURCES
+        "${SKATE1_ROOT}/src/frame_cap.cpp"
+        "${SKATE1_ROOT}/src/d3d_trace.cpp"
+        "${SKATE1_ROOT}/src/d3d_trace_runtime.cpp"
+        "${SKATE1_ROOT}/src/native_gpu/native_gpu.cpp"
+        "${SKATE1_ROOT}/src/native_gpu/frame_capture.cpp"
+        "${SKATE1_ROOT}/src/native_gpu/live_renderer.cpp"
+        "${SKATE1_ROOT}/src/native_gpu/renderer.cpp"
+        "${SKATE1_ROOT}/src/native_gpu/shader_registry.cpp"
+        "${SKATE1_ROOT}/third_party/smol-v/smolv.cpp"
+        "${SKATE1_ROOT}/out/native/shader_cache.cpp")
+    target_sources(main PRIVATE ${SKATE1_NATIVE_SOURCES})
+    set_source_files_properties("${SKATE1_ROOT}/out/native/shader_cache.cpp" PROPERTIES
+        INCLUDE_DIRECTORIES "${SKATE1_ROOT}/src/native_gpu")
+    target_compile_definitions(main PRIVATE SKATE1_NATIVE_GPU=1)
+    target_include_directories(main PRIVATE
+        "${SKATE1_ROOT}/src/native_gpu" "${SKATE1_ROOT}/third_party/plume" "${SKATE1_ROOT}/third_party/smol-v")
+    target_link_libraries(main PRIVATE plume)
+endif()
+
 # Custom Vulkan drivers (Turnip, newer Qualcomm drivers) through adrenotools:
 # SDL_main loads one from the game folder's driver/ when present; the hook
 # libraries ship in the APK next to libmain.so.
