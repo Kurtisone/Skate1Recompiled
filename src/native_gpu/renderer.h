@@ -149,6 +149,7 @@ class Renderer {
         swizzled_views;
     uint32_t resolved_size = 0;  // the guest memory a resolve writes
     uint64_t content_hash = 0;   // guest textures, NATIVE_GPU_VERIFY_TEXTURES
+    uint64_t upload_frame = 0;   // guest textures, NATIVE_GPU_NO_TEXTURE_CACHE
     uint32_t watch_stamp = 0;    // guest and resolved textures: WriteWatcher::Watch's
   };
   uint32_t ResolvedIndex(Texture& texture, uint32_t swizzle);
@@ -201,6 +202,7 @@ class Renderer {
     std::vector<std::unique_ptr<plume::RenderTexture>> retired_textures;
     std::vector<std::unique_ptr<plume::RenderTextureView>> retired_views;
     std::vector<std::unique_ptr<plume::RenderFramebuffer>> retired_framebuffers;
+    std::vector<std::pair<uint32_t, uint32_t>> retired_slots;  // heap (dimension), index
     // The packed front buffer read back by this frame.
     std::unique_ptr<plume::RenderBuffer> present_readback;
     const uint32_t* present_pixels = nullptr;
@@ -214,6 +216,7 @@ class Renderer {
   std::unique_ptr<plume::RenderCommandQueue> queue_;
   Frame frames_[kFramesInFlight];
   uint32_t frame_ = 0;
+  uint64_t frame_number_ = 0;
   const Frame* presented_ = nullptr;
   plume::RenderCommandList* commands_ = nullptr;  // the recording frame's
   std::unique_ptr<plume::RenderDescriptorSet> texture_2d_set_, texture_3d_set_, texture_cube_set_;
@@ -231,6 +234,12 @@ class Renderer {
   std::unique_ptr<plume::RenderTexture> null_2d_, null_3d_, null_cube_;
   std::unique_ptr<plume::RenderTextureView> null_cube_view_;
   uint32_t next_2d_ = 1, next_3d_ = 1, next_cube_ = 1;
+  // Descriptor slots by heap (Texture::dimension - 1). A replaced texture gets
+  // a new one: commands already recorded, and the frame on the GPU, keep
+  // reading the old texture through the old slot until they have completed.
+  uint32_t AllocateSlot(uint32_t dimension);
+  std::vector<uint32_t> free_slots_[3];
+  std::vector<std::pair<uint32_t, uint32_t>> retired_slots_;
 
   std::unordered_map<uint64_t, Shader> shaders_;
   std::unordered_map<uint64_t, std::unique_ptr<plume::RenderPipeline>> pipelines_;

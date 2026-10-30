@@ -328,6 +328,23 @@ void Renderer::WaitFrame(Frame& frame) {
   frame.retired_buffers.clear();
   frame.retired_views.clear();
   frame.retired_textures.clear();
+  for (const auto& [dimension, index] : frame.retired_slots) free_slots_[dimension - 1].push_back(index);
+  frame.retired_slots.clear();
+}
+
+uint32_t Renderer::AllocateSlot(uint32_t dimension) {
+  std::vector<uint32_t>& free = free_slots_[dimension - 1];
+  if (!free.empty()) {
+    const uint32_t index = free.back();
+    free.pop_back();
+    return index;
+  }
+  uint32_t& next = dimension == 2 ? next_3d_ : dimension == 3 ? next_cube_ : next_2d_;
+  if (next >= kTextureHeapSize) {
+    ++stats_["texture heap full"];
+    return 0;  // the null texture
+  }
+  return next++;
 }
 
 void Renderer::WaitIdle() {
@@ -384,6 +401,7 @@ void Renderer::SetMainLayout() {
 }
 
 void Renderer::BeginFrame() {
+  ++frame_number_;
   Frame& frame = frames_[frame_];
   WaitFrame(frame);
   commands_ = frame.commands.get();
@@ -470,6 +488,8 @@ void Renderer::EndFrame(uint32_t present_address) {
   for (auto& b : retired_buffers_) frame.retired_buffers.push_back(std::move(b));
   for (auto& t : retired_textures_) frame.retired_textures.push_back(std::move(t));
   for (auto& v : retired_views_) frame.retired_views.push_back(std::move(v));
+  frame.retired_slots.insert(frame.retired_slots.end(), retired_slots_.begin(), retired_slots_.end());
+  retired_slots_.clear();
   for (auto& f : retired_framebuffers_) frame.retired_framebuffers.push_back(std::move(f));
   retired_buffers_.clear();
   retired_textures_.clear();
@@ -545,7 +565,7 @@ uint32_t Renderer::ResolvedIndex(Texture& texture, uint32_t swizzle) {
     desc.mipLevels = 1;
     desc.componentMapping = SwizzleMapping(swizzle);
     view = texture.texture->createTextureView(desc);
-    if (!index) index = next_2d_++;
+    if (!index) index = AllocateSlot(1);
     texture_2d_set_->setTexture(index, texture.texture.get(), RenderTextureLayout::SHADER_READ, view.get());
   }
   return index;
@@ -632,7 +652,10 @@ Renderer::Texture* Renderer::GetGuestTexture(const xenos::TextureFetch& t) {
         guest.content_hash = hash;
       }
     }
-    if (!guest.texture ||
+    static const bool noCache = getenv("NATIVE_GPU_NO_TEXTURE_CACHE") != nullptr;  // debugging
+    if (noCache && guest.texture && guest.upload_frame != frame_number_) {
+      // Every texture is replaced once a frame, in the middle of it.
+    } else if (!guest.texture ||
         !(watcher_ && (watcher_->Dirty(t.address & 0x1FFFFFFF, byteSize, guest.watch_stamp) ||
                        (t.mip_address && watcher_->Dirty(t.mip_address & 0x1FFFFFFF, byteSize, guest.watch_stamp))))) {
       return guest.texture ? &guest : nullptr;
@@ -641,6 +664,8 @@ Renderer::Texture* Renderer::GetGuestTexture(const xenos::TextureFetch& t) {
     layouts_.erase(guest.texture.get());
     retired_textures_.push_back(std::move(guest.texture));
     retired_views_.push_back(std::move(guest.view));
+    if (guest.index) retired_slots_.emplace_back(guest.dimension, guest.index);
+    guest.index = 0;
     ++stats_["textures re-uploaded"];
   }
   // The mip chain lives elsewhere and fits in the size of level 0.
@@ -649,6 +674,7 @@ Renderer::Texture* Renderer::GetGuestTexture(const xenos::TextureFetch& t) {
     if (t.mip_address) watcher_->Watch(t.mip_address & 0x1FFFFFFF, byteSize);
   }
   guest.content_hash = XXH3_64bits(physical_ + (t.address & 0x1FFFFFFF), byteSize);
+  guest.upload_frame = frame_number_;
   guest.dimension = t.dimension;
   const RenderFormat format = TextureFormat(t);
   if (t.dimension == 2 && format != RenderFormat::UNKNOWN) {
@@ -674,7 +700,7 @@ Renderer::Texture* Renderer::GetGuestTexture(const xenos::TextureFetch& t) {
     view.mipLevels = 1;
     view.componentMapping = SwizzleMapping(t.swizzle);
     guest.view = guest.texture->createTextureView(view);
-    if (!guest.index) guest.index = next_3d_++;
+    if (!guest.index) guest.index = AllocateSlot(2);
     texture_3d_set_->setTexture(guest.index, guest.texture.get(), RenderTextureLayout::SHADER_READ, guest.view.get());
     if (inserted) ++stats_["textures (3D)"];
     return &guest;
@@ -715,7 +741,7 @@ Renderer::Texture* Renderer::GetGuestTexture(const xenos::TextureFetch& t) {
   view.mipLevels = uint32_t(levels.size());
   view.componentMapping = SwizzleMapping(t.swizzle);
   guest.view = guest.texture->createTextureView(view);
-  if (!guest.index) guest.index = cube ? next_cube_++ : next_2d_++;
+  if (!guest.index) guest.index = AllocateSlot(cube ? 3 : 1);
   (cube ? texture_cube_set_ : texture_2d_set_)
       ->setTexture(guest.index, guest.texture.get(), RenderTextureLayout::SHADER_READ, guest.view.get());
   if (inserted) ++stats_[cube ? "textures (cube)" : "textures (2D)"];
@@ -736,7 +762,7 @@ Renderer::Texture& Renderer::CreateSurface(uint64_t key, uint32_t width, uint32_
   view.dimension = RenderTextureViewDimension::TEXTURE_2D;
   view.mipLevels = 1;
   surface.view = surface.texture->createTextureView(view);
-  surface.index = next_2d_++;
+  surface.index = AllocateSlot(1);
   texture_2d_set_->setTexture(surface.index, surface.texture.get(), RenderTextureLayout::SHADER_READ,
                               surface.view.get());
   if (depth) {
@@ -752,7 +778,7 @@ Renderer::Texture& Renderer::CreateSurface(uint64_t key, uint32_t width, uint32_
     info.format = VK_FORMAT_D32_SFLOAT_S8_UINT;
     info.subresourceRange = {VK_IMAGE_ASPECT_STENCIL_BIT, 0, 1, 0, 1};
     vkCreateImageView(vkDevice, &info, nullptr, &vulkanView->vk);
-    surface.stencil_index = next_2d_++;
+    surface.stencil_index = AllocateSlot(1);
     texture_2d_set_->setTexture(surface.stencil_index, surface.texture.get(), RenderTextureLayout::SHADER_READ,
                                 surface.stencil_view.get());
   }
@@ -919,7 +945,7 @@ void Renderer::Resolve(const ResolveCall& call) {
     view.dimension = RenderTextureViewDimension::TEXTURE_2D;
     view.mipLevels = 1;
     dest.view = dest.texture->createTextureView(view);
-    if (!dest.index) dest.index = next_2d_++;
+    if (!dest.index) dest.index = AllocateSlot(1);
     texture_2d_set_->setTexture(dest.index, dest.texture.get(), RenderTextureLayout::SHADER_READ,
                                 dest.view.get());
   }
@@ -1157,6 +1183,10 @@ void Renderer::Draw(const DrawCall& call) {
                         resolved->second.watch_stamp)) {
       // Written by the game since it was resolved: the guest texture now.
       RetireResolved(resolved->second);
+      if (resolved->second.index) retired_slots_.emplace_back(1, resolved->second.index);
+      for (const auto& [swizzle, entry] : resolved->second.swizzled_views) {
+        if (entry.second) retired_slots_.emplace_back(1, entry.second);
+      }
       resolved_.erase(resolved);
       resolved = resolved_.end();
       ++stats_["resolved textures overwritten by the game"];
