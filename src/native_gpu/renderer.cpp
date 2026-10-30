@@ -114,6 +114,8 @@ RenderFormat VertexFormat(const xenos::VertexFetchInstruction& fetch, uint32_t u
     case k_16_16_16_16:
       return i ? (s ? RenderFormat::R16G16B16A16_SSCALED : RenderFormat::R16G16B16A16_USCALED)
                : (s ? RenderFormat::R16G16B16A16_SNORM : RenderFormat::R16G16B16A16_UNORM);
+    case k_10_11_11:  // no such host format: the buffer is narrowed to 8 bits (see Draw)
+      return s ? RenderFormat::R8G8B8A8_SNORM : RenderFormat::R8G8B8A8_UNORM;
     case k_16_16_FLOAT: return RenderFormat::R16G16_FLOAT;
     case k_16_16_16_16_FLOAT: return RenderFormat::R16G16B16A16_FLOAT;
     case k_32: return s ? RenderFormat::R32_SINT : RenderFormat::R32_UINT;
@@ -1033,6 +1035,8 @@ void Renderer::Draw(const DrawCall& call) {
   // component in the high half of each dword, so after the 32-bit swap their
   // halves are put back in order.
   std::vector<std::vector<std::pair<uint32_t, uint32_t>>> halfSwaps;
+  // 10_11_11 elements fed to float inputs per slot (byte offset, signed).
+  std::vector<std::vector<std::pair<uint32_t, uint32_t>>> narrowed;
   uint32_t lastStride = 0, lastSlot = 0;
   bool packedNormals = false, halfNormals = false;
   // What the GPU loads is the object's physical part as D3D patched it.
@@ -1117,6 +1121,10 @@ void Renderer::Draw(const DrawCall& call) {
       slotFetch.push_back(fetch.fetch_slot);
       inputSlots.emplace_back(slot, fetch.stride * 4);
       halfSwaps.emplace_back();
+      narrowed.emplace_back();
+    }
+    if (fetch.format == xenos::k_10_11_11 && !raw) {
+      narrowed[slot].emplace_back(uint32_t(fetch.offset * 4), uint32_t(fetch.is_signed));
     }
     if (fetch.format == xenos::k_16_16 || fetch.format == xenos::k_16_16_FLOAT) {
       halfSwaps[slot].emplace_back(uint32_t(fetch.offset * 4), 1);
@@ -1146,6 +1154,18 @@ void Renderer::Draw(const DrawCall& call) {
     const uint32_t stride = inputSlots[slot].stride;
     auto convert = [&](uint8_t* data, uint32_t size, uint32_t endian) {
       xenos::SwapEndian(data, size, endian);
+      for (const auto& [offset, is_signed] : narrowed[slot]) {
+        for (uint32_t vertex = 0; stride && (vertex + 1) * stride <= size; ++vertex) {
+          uint8_t* p = data + vertex * stride + offset;
+          uint32_t v;
+          std::memcpy(&v, p, 4);
+          // x and y are 11 bits, z 10, in that order from the low bit.
+          p[0] = uint8_t((v >> 3) & 0xFF);
+          p[1] = uint8_t((v >> 14) & 0xFF);
+          p[2] = uint8_t(v >> 24);
+          p[3] = is_signed ? 127 : 255;
+        }
+      }
       for (const auto& [offset, dwords] : halfSwaps[slot]) {
         for (uint32_t vertex = 0; stride && (vertex + 1) * stride <= size; ++vertex) {
           uint8_t* p = data + vertex * stride + offset;
@@ -1166,6 +1186,7 @@ void Renderer::Draw(const DrawCall& call) {
     // Guest vertex buffers are converted once and kept until written to.
     uint64_t layout = XXH3_64bits_withSeed(halfSwaps[slot].data(),
                                   halfSwaps[slot].size() * sizeof(halfSwaps[slot][0]), stride);
+    layout ^= XXH3_64bits(narrowed[slot].data(), narrowed[slot].size() * sizeof(narrowed[slot][0]));
     const uint32_t address = fetch.address & 0x1FFFFFFF;
     const RenderBuffer* buffer = GetGuestBuffer(address, fetch.size, layout ^ fetch.endian,
                                                 [&](uint8_t* data) { convert(data, fetch.size, fetch.endian); });

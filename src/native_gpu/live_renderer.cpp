@@ -18,6 +18,7 @@
 #include <filesystem>
 #include <climits>
 #include <cstdio>
+#include <map>
 #include <memory>
 #include <condition_variable>
 #include <mutex>
@@ -338,6 +339,23 @@ void RenderFrame(Frame& frame) {
   g_thread_time += std::chrono::steady_clock::now() - start;
 }
 
+// Logs what the renderer could not do, first time and when it grows tenfold,
+// so a player's log tells which draws went missing.
+void LogRendererIssues() {
+  static std::map<std::string, uint32_t> logged;
+  for (const auto& [what, count] : g_renderer->stats()) {
+    if (what.find("skipped") == std::string::npos && what.find("vertex element") == std::string::npos &&
+        what.find("heap full") == std::string::npos) {
+      continue;
+    }
+    uint32_t& last = logged[what];
+    if (count >= last * 10 + 1) {
+      last = count;
+      REXLOG_WARN("native_gpu: {} ({}x)", what, count);
+    }
+  }
+}
+
 void RendererThread() {
   for (;;) {
     Frame frame;
@@ -349,6 +367,8 @@ void RendererThread() {
       g_busy = true;
     }
     RenderFrame(frame);
+    static uint32_t rendered = 0;
+    if (++rendered % 300 == 0) LogRendererIssues();
     {
       std::lock_guard<std::mutex> lock(g_queue_mutex);
       g_busy = false;
