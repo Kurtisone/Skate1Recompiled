@@ -27,6 +27,7 @@ set(SKATE1_SOURCES
     src/d3d_trace_runtime.cpp
     src/scene_tiling.cpp
     src/frame_cap.cpp
+    src/quit_menu.cpp
 )
 
 # Native D3D layer (docs/native_d3d.md): Unleashed Recompiled's renderer on

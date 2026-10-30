@@ -38,7 +38,8 @@ add_library(main SHARED
     "${SKATE1_ROOT}/src/skip_intro.cpp"
     "${SKATE1_ROOT}/src/perf_log.cpp"
     "${SKATE1_ROOT}/src/android_gpu.cpp"
-    "${SKATE1_ROOT}/src/capture_debug.cpp")
+    "${SKATE1_ROOT}/src/capture_debug.cpp"
+    "${SKATE1_ROOT}/src/quit_menu.cpp")
 target_include_directories(main PRIVATE
     "${SKATE1_ROOT}" "${SKATE1_ROOT}/src" "${SKATE1_GENERATED_DIR}")
 target_link_libraries(main PRIVATE skate1_recomp rex::runtime)

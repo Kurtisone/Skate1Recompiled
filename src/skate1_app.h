@@ -16,6 +16,7 @@ REXCVAR_DECLARE(std::string, perf_log_csv);
 #ifdef SKATE1_NATIVE_GPU
 #include "native_gpu/native_gpu.h"
 #endif
+#include "quit_menu.h"
 
 // src/capture_debug.cpp (capture_guest_output_seconds).
 void StartGuestOutputCapture(rex::Runtime* runtime);
@@ -44,6 +45,11 @@ class Skate1App : public rex::ReXApp {
   // void OnLoadXexImage(std::string& xex_image) override {}
   void OnPostSetup() override {
     StartGuestOutputCapture(runtime());
+    SetMainMenuQuitHandler([this] {
+      app_context().CallInUIThreadDeferred([this] {
+        if (window()) window()->RequestClose();
+      });
+    });
 #ifdef SKATE1_NATIVE_GPU
     StartNativeGpu(runtime());
 #endif
